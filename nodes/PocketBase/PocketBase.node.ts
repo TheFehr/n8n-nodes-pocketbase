@@ -234,7 +234,7 @@ export class PocketBase implements INodeType {
 
 
 async function handleSearch(pb: typeof PocketBaseSDK, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
-	const {page, elementsPerPage, ...parameters} = context.getNodeParameter('parameters', 0) as {
+	const {page, elementsPerPage, ...parameters} = context.getNodeParameter('parameters', itemIndex) as {
 		filter: string | null,
 		sort: string | null,
 		expand: string | null,
