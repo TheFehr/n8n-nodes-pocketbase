@@ -1,0 +1,20 @@
+{
+	"node": "n8n-nodes-base.PocketBase",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": [
+		"Miscellaneous"
+	],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://pocketbase.io/docs/authentication/"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://pocketbase.io/docs/api-records/"
+			}
+		]
+	}
+}
