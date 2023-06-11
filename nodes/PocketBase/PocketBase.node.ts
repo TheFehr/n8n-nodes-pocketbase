@@ -218,7 +218,7 @@ export class PocketBase implements INodeType {
 			} catch (error) {
 				if (this.continueOnFail()) {
 					const inputData = this.getInputData(itemIndex);
-					if (inputData.length > 0) {
+					if (inputData && inputData.length > 0) {
 						items.push({json: inputData[0].json, error, pairedItem: itemIndex});
 					} else {
 						items.push({json: {}, error, pairedItem: itemIndex});
