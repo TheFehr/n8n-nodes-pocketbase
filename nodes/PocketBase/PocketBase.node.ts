@@ -19,6 +19,7 @@ export class PocketBase implements INodeType {
 		icon: 'file:pocketbase.svg',
 		group: ['transform'],
 		version: 1,
+		subtitle: '={{$parameter["operation"] + " " + $parameter["resource"]}}',
 		description: 'Consume PocketBase API',
 		defaults: {
 			name: 'PocketBase',
@@ -35,16 +36,16 @@ export class PocketBase implements INodeType {
 
 		properties: [
 			{
-				displayName: 'Collection',
-				name: 'collection',
+				displayName: 'Resource',
+				name: 'resource',
 				type: 'string',
 				default: '',
 				required: true,
-				description: 'The Collection you are working on/with'
+				description: 'The Resource (PB: Collection) you are working on/with'
 			},
 			{
-				displayName: 'Action',
-				name: 'action',
+				displayName: 'Operation',
+				name: 'operation',
 				type: 'options',
 				options: [
 					{
@@ -79,7 +80,7 @@ export class PocketBase implements INodeType {
 				default: '',
 				displayOptions: {
 					show: {
-						action: [
+						operation: [
 							'view', 'update'
 						]
 					}
@@ -135,7 +136,7 @@ export class PocketBase implements INodeType {
 				type: 'fixedCollection',
 				displayOptions: {
 					show: {
-						action: ['create', 'update']
+						operation: ['create', 'update']
 					}
 				},
 				typeOptions: {
@@ -181,14 +182,14 @@ export class PocketBase implements INodeType {
 		const items = this.getInputData();
 		const returnData = [];
 		const auth = await this.getCredentials('pocketBaseApi', 0) as unknown as Credentials;
-		const action = this.getNodeParameter('action', 0) as string;
+		const action = this.getNodeParameter('operation', 0) as string;
 
 		const pb = new PocketBaseSDK(auth.url);
 		await pb.collection(auth.userCollection).authWithPassword(auth.username, auth.password);
 		if (!pb.authStore.isValid) {
 			throw new NodeOperationError(this.getNode(), `Authentication failed!`);
 		}
-		const collection = this.getNodeParameter('collection', 0) as string;
+		const collection = this.getNodeParameter('resource', 0) as string;
 
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
