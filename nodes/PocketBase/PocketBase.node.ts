@@ -217,7 +217,12 @@ export class PocketBase implements INodeType {
 				}
 			} catch (error) {
 				if (this.continueOnFail()) {
-					items.push({json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex});
+					const inputData = this.getInputData(itemIndex);
+					if (inputData.length > 0) {
+						items.push({json: inputData[0].json, error, pairedItem: itemIndex});
+					} else {
+						items.push({json: {}, error, pairedItem: itemIndex});
+					}
 				} else {
 					throw new NodeOperationError(
 						this.getNode(),
