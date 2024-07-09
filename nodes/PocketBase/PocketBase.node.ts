@@ -1,6 +1,4 @@
-import {IExecuteFunctions,} from 'n8n-core';
-
-import {IDataObject, INodeExecutionData, INodeType, INodeTypeDescription, NodeOperationError,} from 'n8n-workflow';
+import {IDataObject, IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, NodeOperationError,} from 'n8n-workflow';
 
 import 'cross-fetch/polyfill';
 const PocketBaseSDK = require('pocketbase/cjs');
