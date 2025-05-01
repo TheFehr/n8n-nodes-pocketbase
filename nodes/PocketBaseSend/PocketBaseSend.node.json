@@ -1,0 +1,23 @@
+{
+	"node": "n8n-nodes-base.PocketBaseSend",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": [
+		"Miscellaneous"
+	],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://pocketbase.io/docs/authentication/"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://pocketbase.io/docs/js-routing/#registering-new-routes"
+			},
+			{
+				"url": "https://github.com/pocketbase/js-sdk?tab=readme-ov-file#instance-methods"
+			}
+		]
+	}
+}

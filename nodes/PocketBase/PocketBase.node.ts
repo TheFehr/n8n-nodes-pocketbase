@@ -1,7 +1,15 @@
-import {IDataObject, IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, NodeOperationError,} from 'n8n-workflow';
+import {
+	IDataObject,
+	IExecuteFunctions,
+	INodeExecutionData,
+	INodeType,
+	INodeTypeDescription,
+	NodeConnectionType,
+	NodeOperationError,
+} from 'n8n-workflow';
 
-import 'cross-fetch/polyfill';
-const PocketBaseSDK = require('pocketbase/cjs');
+import PocketBaseSDK, {RecordListQueryParams} from 'pocketbase';
+import Client from "pocketbase";
 
 interface Credentials {
 	url: string;
@@ -22,8 +30,8 @@ export class PocketBase implements INodeType {
 		defaults: {
 			name: 'PocketBase',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionType.Main],
+		outputs: [NodeConnectionType.Main],
 		credentials: [
 			{
 				name: 'pocketBaseApi',
@@ -91,15 +99,6 @@ export class PocketBase implements INodeType {
 				default: {},
 				options: [
 					{
-						displayName: 'Page',
-						name: 'page',
-						type: 'number',
-						typeOptions: {
-							minValue: 1
-						},
-						default: 1
-					},
-					{
 						displayName: 'Elements per Page',
 						name: 'elementsPerPage',
 						type: 'number',
@@ -109,20 +108,30 @@ export class PocketBase implements INodeType {
 						default: 30
 					},
 					{
+						displayName: 'Expand',
+						name: 'expand',
+						type: 'string',
+						default: ''
+					},
+					{
 						displayName: 'Filter',
 						name: 'filter',
 						type: 'string',
 						default: ''
 					},
+
+					{
+						displayName: 'Page',
+						name: 'page',
+						type: 'number',
+						typeOptions: {
+							minValue: 1
+						},
+						default: 1
+					},
 					{
 						displayName: 'Sort',
 						name: 'sort',
-						type: 'string',
-						default: ''
-					},
-					{
-						displayName: 'Expand',
-						name: 'expand',
 						type: 'string',
 						default: ''
 					}
@@ -237,14 +246,8 @@ export class PocketBase implements INodeType {
 }
 
 
-async function handleSearch(pb: typeof PocketBaseSDK, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
-	const {page, elementsPerPage, ...parameters} = context.getNodeParameter('parameters', itemIndex) as {
-		filter: string | null,
-		sort: string | null,
-		expand: string | null,
-		page: number,
-		elementsPerPage: number
-	};
+async function handleSearch(pb: Client, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
+	const {page, elementsPerPage, ...parameters} = context.getNodeParameter('parameters', itemIndex) as RecordListQueryParams;
 	const records = await pb.collection(collection).getList(page, elementsPerPage, parameters);
 
 	return {
@@ -253,7 +256,7 @@ async function handleSearch(pb: typeof PocketBaseSDK, context: IExecuteFunctions
 }
 
 
-async function handleView(pb: typeof PocketBaseSDK, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
+async function handleView(pb: Client, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
 	const elementId = context.getNodeParameter('elementId', itemIndex) as string;
 	const record = await pb.collection(collection).getOne(elementId);
 
@@ -261,7 +264,7 @@ async function handleView(pb: typeof PocketBaseSDK, context: IExecuteFunctions, 
 }
 
 
-async function handleUpdate(pb: typeof PocketBaseSDK, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
+async function handleUpdate(pb: Client, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
 	const elementId = context.getNodeParameter('elementId', itemIndex) as string;
 	const data = context.getNodeParameter('bodyParameters.parameters', itemIndex) as BodyParameter[];
 	const record = await pb.collection(collection).update(elementId, prepareRequestBody(data));
@@ -270,7 +273,7 @@ async function handleUpdate(pb: typeof PocketBaseSDK, context: IExecuteFunctions
 }
 
 
-async function handleCreate(pb: typeof PocketBaseSDK, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
+async function handleCreate(pb: Client, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
 	const data = context.getNodeParameter('bodyParameters.parameters', itemIndex) as BodyParameter[];
 	const record = await pb.collection(collection).create(prepareRequestBody(data));
 
