@@ -26,7 +26,7 @@ Ensure you have an Auth collection in your PocketBase defined and the "Username/
 
 ## Compatibility
 
-This was developed for version 0.230.3 of n8n and version 0.16.5 of PocketBase.
+This was developed for version 1.90.2 of n8n and version 0.27.2 of PocketBase.
 
 ## Resources
 
