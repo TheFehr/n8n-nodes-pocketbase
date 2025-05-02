@@ -1,4 +1,5 @@
 import {
+	ICredentialTestRequest,
 	ICredentialType,
 	INodeProperties,
 } from 'n8n-workflow';
@@ -17,9 +18,10 @@ export class PocketBaseApi implements ICredentialType {
 		},
 		{
 			displayName: 'User collection name',
+			description: 'The name of the collection that contains the user (use _superusers if you want to sign in with an administrator account)',
 			name: 'userCollection',
 			type: 'string',
-			default: 'users',
+			default: '_superusers',
 			required: true
 		},
 		{
@@ -40,4 +42,16 @@ export class PocketBaseApi implements ICredentialType {
 			required: true
 		}
 	];
+
+	test: ICredentialTestRequest = {
+		request: {
+			baseURL: '={{$credentials?.url}}',
+			url: '=/api/collections/{{$credentials?.userCollection}}/auth-with-password',
+			method: 'POST',
+			body: {
+				identity: '={{$credentials?.username}}',
+				password: '={{$credentials?.password}}',
+			}
+		}
+	};
 }
