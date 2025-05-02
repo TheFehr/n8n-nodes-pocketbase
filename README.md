@@ -23,6 +23,7 @@ Nearly all PocketBase operations for Base collections should be implemented.
 ## Credentials
 
 Ensure you have an Auth collection in your PocketBase defined and the "Username/Password" Auth method turned on.  
+Alternatively, you can use your administrator account and the "_superusers" collection which PocketBase creates automatically since [v0.23.0](https://github.com/pocketbase/pocketbase/releases/tag/v0.23.0).
 
 ## Compatibility
 
