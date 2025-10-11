@@ -183,6 +183,7 @@ export class PocketBase implements INodeType {
 				],
 			}
 		],
+		usableAsTool: true,
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
