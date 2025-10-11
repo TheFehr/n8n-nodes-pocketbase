@@ -53,6 +53,7 @@ export class PocketBaseSend implements INodeType {
 				default: '',
 			}
 		],
+		usableAsTool: true,
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
