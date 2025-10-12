@@ -28,6 +28,13 @@ export class PocketBaseSend implements INodeType {
 		defaults: {
 			name: 'PocketBase - Send',
 		},
+		codex: {
+			categories: ['AI'],
+			subcategories: {
+				AI: ['Tools'],
+				Tools: ['Other Tools'],
+			}
+		},
 		inputs: [NodeConnectionType.Main],
 		outputs: [NodeConnectionType.Main],
 		credentials: [
@@ -53,7 +60,6 @@ export class PocketBaseSend implements INodeType {
 				default: '',
 			}
 		],
-		usableAsTool: true,
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
