@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-pocketbase",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Interact with your PocketBase instance",
   "keywords": [
     "n8n-community-node-package"
@@ -38,15 +38,15 @@
   },
   "devDependencies": {
     "@types/request-promise-native": "~1.0.15",
-    "@typescript-eslint/parser": "^7.15.0",
-    "eslint": "^8.56.0",
-    "eslint-plugin-n8n-nodes-base": "^1.16.3",
-    "gulp": "^5.0.0",
-    "prettier": "^3.3.2",
-    "typescript": "^5.5.3"
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-n8n-nodes-base": "^1.16.4",
+    "gulp": "^5.0.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "n8n-workflow": "*"
+    "n8n-workflow": "^1.17.0"
   },
   "dependencies": {
     "pocketbase": "^0.15.3"

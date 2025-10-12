@@ -30,6 +30,13 @@ export class PocketBase implements INodeType {
 		defaults: {
 			name: 'PocketBase',
 		},
+		codex: {
+			categories: ['AI'],
+			subcategories: {
+				AI: ['Tools'],
+				Tools: ['Other Tools'],
+			}
+		},
 		inputs: [NodeConnectionType.Main],
 		outputs: [NodeConnectionType.Main],
 		credentials: [
@@ -183,7 +190,6 @@ export class PocketBase implements INodeType {
 				],
 			}
 		],
-		usableAsTool: true,
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
