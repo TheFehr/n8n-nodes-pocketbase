@@ -1,22 +1,11 @@
-import {
-	IDataObject,
-	IExecuteFunctions,
-	INodeExecutionData,
+import type {
+	ILoadOptionsFunctions,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
-	NodeConnectionType,
-	NodeOperationError,
 } from 'n8n-workflow';
-
-import PocketBaseSDK, {RecordListQueryParams} from 'pocketbase';
-import Client from "pocketbase";
-
-interface Credentials {
-	url: string;
-	userCollection: string;
-	username: string;
-	password: string;
-}
+import { NodeConnectionTypes } from 'n8n-workflow';
+import { recordUpdatePreSendAction } from './GenericFunctions';
 
 export class PocketBase implements INodeType {
 	description: INodeTypeDescription = {
@@ -30,31 +19,44 @@ export class PocketBase implements INodeType {
 		defaults: {
 			name: 'PocketBase',
 		},
+		usableAsTool: true,
 		codex: {
 			categories: ['AI'],
 			subcategories: {
 				AI: ['Tools'],
 				Tools: ['Other Tools'],
-			}
+			},
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		credentials: [
 			{
 				name: 'pocketBaseApi',
 				required: true,
 			},
 		],
-
+		requestDefaults: {
+			returnFullResponse: true,
+			baseURL: '={{$credentials.url.replace(new RegExp("/$"), "")}}',
+			headers: {
+				Accept: 'application/json',
+				'Content-Type': 'application/json',
+			},
+		},
 
 		properties: [
 			{
-				displayName: 'Resource',
+				displayName: 'Collection Name or ID',
 				name: 'resource',
-				type: 'string',
+				type: 'options',
 				default: '',
+				noDataExpression: true,
 				required: true,
-				description: 'The Resource (PB: Collection) you are working on/with'
+				typeOptions: {
+					loadOptionsMethod: 'getCollections',
+				},
+				description:
+					'The Resource (PB: Collection) you are working on/with. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Operation',
@@ -64,27 +66,48 @@ export class PocketBase implements INodeType {
 					{
 						name: 'List/Search',
 						value: 'search',
-						action: 'List or search your collection'
+						action: 'List or search your collection',
+						routing: {
+							request: {
+								method: 'GET',
+								url: '=/api/collections/{{$parameter["resource"]}}/records',
+							}
+						},
 					},
 					{
 						name: 'View',
 						value: 'view',
-						action: 'View an element in your collection'
+						action: 'View an element in your collection',
+						routing: {
+							request: {
+								method: 'GET',
+								url: `=/api/collections/{{$parameter["resource"]}}/records/{{$parameter["elementId"]}}`,
+							}
+						},
 					},
 					{
 						name: 'Create',
 						value: 'create',
-						action: 'Create an element in your collection'
+						action: 'Create an element in your collection',
 					},
 					{
 						name: 'Update',
 						value: 'update',
-						action: 'Update an element in your collection'
-					}
+						action: 'Update an element in your collection',
+						routing: {
+							request: {
+								method: 'PATCH',
+								url: `=/api/collections/{{$parameter["resource"]}}/records/{{$parameter["elementId"]}}`,
+							},
+							send: {
+								preSend: [recordUpdatePreSendAction]
+							}
+						},
+					},
 				],
 				default: 'search',
 				required: true,
-				noDataExpression: true
+				noDataExpression: true,
 			},
 			{
 				displayName: 'Element ID',
@@ -93,11 +116,9 @@ export class PocketBase implements INodeType {
 				default: '',
 				displayOptions: {
 					show: {
-						operation: [
-							'view', 'update'
-						]
-					}
-				}
+						operation: ['view', 'update'],
+					},
+				},
 			},
 			{
 				displayName: 'Parameters',
@@ -110,21 +131,21 @@ export class PocketBase implements INodeType {
 						name: 'elementsPerPage',
 						type: 'number',
 						typeOptions: {
-							minValue: 1
+							minValue: 1,
 						},
-						default: 30
+						default: 30,
 					},
 					{
 						displayName: 'Expand',
 						name: 'expand',
 						type: 'string',
-						default: ''
+						default: '',
 					},
 					{
 						displayName: 'Filter',
 						name: 'filter',
 						type: 'string',
-						default: ''
+						default: '',
 					},
 
 					{
@@ -132,17 +153,17 @@ export class PocketBase implements INodeType {
 						name: 'page',
 						type: 'number',
 						typeOptions: {
-							minValue: 1
+							minValue: 1,
 						},
-						default: 1
+						default: 1,
 					},
 					{
 						displayName: 'Sort',
 						name: 'sort',
 						type: 'string',
-						default: ''
-					}
-				]
+						default: '',
+					},
+				],
 			},
 			{
 				displayName: 'Body Parameters',
@@ -150,8 +171,8 @@ export class PocketBase implements INodeType {
 				type: 'fixedCollection',
 				displayOptions: {
 					show: {
-						operation: ['create', 'update']
-					}
+						operation: ['create', 'update'],
+					},
 				},
 				typeOptions: {
 					multipleValues: true,
@@ -188,111 +209,33 @@ export class PocketBase implements INodeType {
 						],
 					},
 				],
-			}
+			},
 		],
 	};
 
-	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		const items = this.getInputData();
-		const returnData = [];
-		const auth = await this.getCredentials('pocketBaseApi', 0) as unknown as Credentials;
-		const action = this.getNodeParameter('operation', 0) as string;
+	methods = {
+		loadOptions: {
+			async getCollections(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				const { url } = await this.getCredentials('pocketBaseApi');
+				const { items } = await this.helpers.httpRequestWithAuthentication.call(
+					this,
+					'pocketBaseApi',
+					{
+						url: `${url}/api/collections`,
+						method: 'GET',
+					},
+				);
 
-		const pb = new PocketBaseSDK(auth.url);
-		await pb.collection(auth.userCollection).authWithPassword(auth.username, auth.password);
-		if (!pb.authStore.isValid) {
-			throw new NodeOperationError(this.getNode(), `Authentication failed!`);
-		}
-		const collection = this.getNodeParameter('resource', 0) as string;
+				items.forEach(({ id, name }: { id: string; name: string }) => {
+					returnData.push({
+						name,
+						value: id,
+					});
+				});
 
-		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
-			try {
-				let elementData;
-				switch (action) {
-					case 'search':
-						elementData = await handleSearch(pb, this, collection, itemIndex);
-						returnData.push(elementData);
-						break;
-
-					case 'view':
-						elementData = await handleView(pb, this, collection, itemIndex);
-						returnData.push(elementData);
-						break;
-
-					case 'update':
-						elementData = await handleUpdate(pb, this, collection, itemIndex);
-						returnData.push(elementData);
-						break;
-
-					case 'create':
-						elementData = await handleCreate(pb, this, collection, itemIndex);
-						returnData.push(elementData);
-						break;
-				}
-			} catch (error) {
-				if (this.continueOnFail()) {
-					const inputData = this.getInputData(itemIndex);
-					if (inputData && inputData.length > 0) {
-						items.push({json: inputData[0].json, error, pairedItem: itemIndex});
-					} else {
-						items.push({json: {}, error, pairedItem: itemIndex});
-					}
-				} else {
-					throw new NodeOperationError(
-						this.getNode(),
-						`Something went wrong:<br>${JSON.stringify(error.response)}`,
-						{itemIndex}
-					);
-
-				}
-			}
-		}
-
-		return [this.helpers.returnJsonArray(returnData)];
-	}
+				return returnData;
+			},
+		},
+	};
 }
-
-
-async function handleSearch(pb: Client, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
-	const {page, elementsPerPage, ...parameters} = context.getNodeParameter('parameters', itemIndex) as RecordListQueryParams;
-	const records = await pb.collection(collection).getList(page, elementsPerPage, parameters);
-
-	return {
-		...records
-	} as IDataObject;
-}
-
-
-async function handleView(pb: Client, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
-	const elementId = context.getNodeParameter('elementId', itemIndex) as string;
-	const record = await pb.collection(collection).getOne(elementId);
-
-	return record as IDataObject;
-}
-
-
-async function handleUpdate(pb: Client, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
-	const elementId = context.getNodeParameter('elementId', itemIndex) as string;
-	const data = context.getNodeParameter('bodyParameters.parameters', itemIndex) as BodyParameter[];
-	const record = await pb.collection(collection).update(elementId, prepareRequestBody(data));
-
-	return record as IDataObject;
-}
-
-
-async function handleCreate(pb: Client, context: IExecuteFunctions, collection: string, itemIndex: number): Promise<IDataObject> {
-	const data = context.getNodeParameter('bodyParameters.parameters', itemIndex) as BodyParameter[];
-	const record = await pb.collection(collection).create(prepareRequestBody(data));
-
-	return record as IDataObject;
-}
-
-type BodyParameter = { name: string; value: string };
-const prepareRequestBody = (
-	parameters: BodyParameter[]
-) => {
-	return parameters.reduce((acc, entry) => {
-		acc[entry.name] = entry.value;
-		return acc;
-	}, {} as IDataObject);
-};
