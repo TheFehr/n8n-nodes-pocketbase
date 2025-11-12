@@ -1,11 +1,16 @@
-import type {
-	ILoadOptionsFunctions,
-	INodePropertyOptions,
+import {
 	INodeType,
 	INodeTypeDescription,
+	NodeConnectionTypes
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
-import { recordUpdatePreSendAction } from './GenericFunctions';
+import {
+	pagination,
+	recordCreatePreSendAction,
+	recordUpdatePreSendAction,
+	recordViewPostReceiveAction,
+	recordViewPreSendAction,
+} from './GenericFunctions';
+import { LoadOptions } from './LoadOptions';
 
 export class PocketBase implements INodeType {
 	description: INodeTypeDescription = {
@@ -71,7 +76,14 @@ export class PocketBase implements INodeType {
 							request: {
 								method: 'GET',
 								url: '=/api/collections/{{$parameter["resource"]}}/records',
-							}
+							},
+							output: {
+								postReceive: [recordViewPostReceiveAction],
+							},
+							send: {
+								paginate: true,
+							},
+							operations: { pagination },
 						},
 					},
 					{
@@ -82,13 +94,25 @@ export class PocketBase implements INodeType {
 							request: {
 								method: 'GET',
 								url: `=/api/collections/{{$parameter["resource"]}}/records/{{$parameter["elementId"]}}`,
-							}
+							},
+							send: {
+								preSend: [recordViewPreSendAction],
+							},
 						},
 					},
 					{
 						name: 'Create',
 						value: 'create',
 						action: 'Create an element in your collection',
+						routing: {
+							request: {
+								method: 'POST',
+								url: `=/api/collections/{{$parameter["resource"]}}/records`,
+							},
+							send: {
+								preSend: [recordCreatePreSendAction],
+							},
+						},
 					},
 					{
 						name: 'Update',
@@ -100,8 +124,8 @@ export class PocketBase implements INodeType {
 								url: `=/api/collections/{{$parameter["resource"]}}/records/{{$parameter["elementId"]}}`,
 							},
 							send: {
-								preSend: [recordUpdatePreSendAction]
-							}
+								preSend: [recordUpdatePreSendAction],
+							},
 						},
 					},
 				],
@@ -110,9 +134,15 @@ export class PocketBase implements INodeType {
 				noDataExpression: true,
 			},
 			{
-				displayName: 'Element ID',
+				displayName: 'Element Name or ID',
 				name: 'elementId',
-				type: 'string',
+				type: 'options',
+				description:
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+				typeOptions: {
+					loadOptionsDependsOn: ['resource', 'parameters.fields'],
+					loadOptionsMethod: 'getRows',
+				},
 				default: '',
 				displayOptions: {
 					show: {
@@ -127,6 +157,12 @@ export class PocketBase implements INodeType {
 				default: {},
 				options: [
 					{
+						displayName: 'All Elements',
+						name: 'allElements',
+						type: 'boolean',
+						default: false,
+					},
+					{
 						displayName: 'Elements per Page',
 						name: 'elementsPerPage',
 						type: 'number',
@@ -134,18 +170,64 @@ export class PocketBase implements INodeType {
 							minValue: 1,
 						},
 						default: 30,
+						routing: {
+							send: {
+								type: 'query',
+								property: 'perPage'
+							},
+						}
 					},
 					{
-						displayName: 'Expand',
-						name: 'expand',
-						type: 'string',
-						default: '',
+						// eslint-disable-next-line n8n-nodes-base/node-param-display-name-wrong-for-dynamic-multi-options
+						displayName: 'Expand Relations',
+						// eslint-disable-next-line n8n-nodes-base/node-param-description-wrong-for-dynamic-multi-options
+						description:
+							'Choose from the list, or specify the Name using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+						name: 'relation',
+						type: 'multiOptions',
+						default: [],
+						typeOptions: {
+							loadOptionsMethod: 'getRelations',
+						},
+						routing: {
+							request: {
+								qs: {
+									expand: '={{ $value ? $value.join(",") : undefined }}',
+								},
+							},
+						},
+					},
+					{
+						// eslint-disable-next-line n8n-nodes-base/node-param-display-name-wrong-for-dynamic-multi-options
+						displayName: 'Field Names',
+						name: 'fields',
+						type: 'multiOptions',
+						// eslint-disable-next-line n8n-nodes-base/node-param-description-wrong-for-dynamic-multi-options
+						description:
+							'Choose from the list, or specify Names using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+						typeOptions: {
+							loadOptionsMethod: 'getFields',
+						},
+						default: [],
+						routing: {
+							request: {
+								qs: {
+									fields: '={{ $value ? $value.join(",") : undefined }}',
+								},
+							},
+						},
 					},
 					{
 						displayName: 'Filter',
 						name: 'filter',
 						type: 'string',
 						default: '',
+						routing: {
+							send: {
+								type: 'query',
+								property: 'filter'
+							},
+						}
 					},
 
 					{
@@ -156,12 +238,24 @@ export class PocketBase implements INodeType {
 							minValue: 1,
 						},
 						default: 1,
+						routing: {
+							send: {
+								type: 'query',
+								property: 'page'
+							},
+						}
 					},
 					{
 						displayName: 'Sort',
 						name: 'sort',
 						type: 'string',
 						default: '',
+						routing: {
+							send: {
+								type: 'query',
+								property: 'sort'
+							},
+						}
 					},
 				],
 			},
@@ -214,28 +308,6 @@ export class PocketBase implements INodeType {
 	};
 
 	methods = {
-		loadOptions: {
-			async getCollections(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const returnData: INodePropertyOptions[] = [];
-				const { url } = await this.getCredentials('pocketBaseApi');
-				const { items } = await this.helpers.httpRequestWithAuthentication.call(
-					this,
-					'pocketBaseApi',
-					{
-						url: `${url}/api/collections`,
-						method: 'GET',
-					},
-				);
-
-				items.forEach(({ id, name }: { id: string; name: string }) => {
-					returnData.push({
-						name,
-						value: id,
-					});
-				});
-
-				return returnData;
-			},
-		},
+		loadOptions: LoadOptions,
 	};
 }
