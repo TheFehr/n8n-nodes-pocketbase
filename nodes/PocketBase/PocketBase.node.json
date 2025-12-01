@@ -1,5 +1,5 @@
 {
-	"node": "n8n-nodes-base.PocketBase",
+	"node": "n8n-nodes-pocketBase",
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
 	"categories": [
