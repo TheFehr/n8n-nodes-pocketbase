@@ -6,23 +6,13 @@ import {
 	IHttpRequestOptions,
 	INodeExecutionData,
 } from 'n8n-workflow';
-
-function prepareRequestBody(this: IExecuteSingleFunctions, requestOptions: IHttpRequestOptions) {
-	requestOptions.body = (requestOptions.body ?? {}) as object;
-
-	const parameters = this.getNodeParameter('bodyParameters.parameters', {}) as object;
-	Object.entries(parameters).forEach(([, entry]) => {
-		const { name, value } = entry;
-		Object.assign(requestOptions.body, { [name]: value });
-	});
-
-	return requestOptions;
-}
+import { prepareRequestBody } from './RequestBodyFunctions';
 
 export async function recordViewPreSendAction(
 	this: IExecuteSingleFunctions,
 	requestOptions: IHttpRequestOptions,
 ): Promise<IHttpRequestOptions> {
+	this.logger.info(`Request URL: ${requestOptions.url} | ${JSON.stringify(requestOptions.qs)}`);
 	return requestOptions;
 }
 
@@ -37,14 +27,14 @@ export async function recordUpdatePreSendAction(
 	this: IExecuteSingleFunctions,
 	requestOptions: IHttpRequestOptions,
 ): Promise<IHttpRequestOptions> {
-	return prepareRequestBody.call(this, requestOptions);
+	return await prepareRequestBody.call(this, requestOptions);
 }
 
 export async function recordCreatePreSendAction(
 	this: IExecuteSingleFunctions,
 	requestOptions: IHttpRequestOptions,
 ): Promise<IHttpRequestOptions> {
-	return prepareRequestBody.call(this, requestOptions);
+	return await prepareRequestBody.call(this, requestOptions);
 }
 
 export async function pagination(

@@ -81,6 +81,7 @@ export class PocketBase implements INodeType {
 								postReceive: [recordViewPostReceiveAction],
 							},
 							send: {
+								preSend: [recordViewPreSendAction],
 								paginate: true,
 							},
 							operations: { pagination },
@@ -200,11 +201,11 @@ export class PocketBase implements INodeType {
 					{
 						// eslint-disable-next-line n8n-nodes-base/node-param-display-name-wrong-for-dynamic-multi-options
 						displayName: 'Field Names',
-						name: 'fields',
-						type: 'multiOptions',
 						// eslint-disable-next-line n8n-nodes-base/node-param-description-wrong-for-dynamic-multi-options
 						description:
 							'Choose from the list, or specify Names using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+						name: 'fields',
+						type: 'multiOptions',
 						typeOptions: {
 							loadOptionsMethod: 'getFields',
 						},
@@ -260,50 +261,80 @@ export class PocketBase implements INodeType {
 				],
 			},
 			{
-				displayName: 'Body Parameters',
-				name: 'bodyParameters',
-				type: 'fixedCollection',
+				displayName: 'Body Type',
+				name: 'bodyType',
+				type: 'multiOptions',
+				default: ['fields'],
+				options: [
+					{
+						name: 'Fields',
+						value: 'fields',
+					},
+					{
+						name: 'JSON Body',
+						value: 'bodyJson',
+					},
+					{
+						name: 'Binary Data',
+						value: 'binaryData',
+					}
+				]
+			},
+			{
+				displayName: 'Fields',
+				name: 'fields',
+				type: 'assignmentCollection',
 				displayOptions: {
 					show: {
 						operation: ['create', 'update'],
+						bodyType: ['fields'],
 					},
 				},
 				typeOptions: {
-					multipleValues: true,
+					loadOptionsDependsOn: ['resource'],
+					loadOptionsMethod: 'getFields',
 				},
-				placeholder: 'Add Parameter',
-				default: {
-					parameters: [
-						{
-							name: '',
-							value: '',
-						},
-					],
-				},
-				options: [
-					{
-						name: 'parameters',
-						displayName: 'Parameter',
-						values: [
-							{
-								displayName: 'Name',
-								name: 'name',
-								type: 'string',
-								default: '',
-								description:
-									'ID of the field to set. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
-							},
-							{
-								displayName: 'Value',
-								name: 'value',
-								type: 'string',
-								default: '',
-								description: 'Value of the field to set',
-							},
-						],
-					},
-				],
+				default: [],
 			},
+			{
+				displayName: 'JSON Body',
+				name: 'bodyJson',
+				type: 'json',
+				displayOptions: {
+					show: {
+						operation: ['create', 'update'],
+						bodyType: ['bodyJson'],
+					},
+				},
+				default: '',
+				placeholder: 'Body according to the collection\'s schema',
+			},
+			{
+				displayName: 'Binary Property Name',
+				name: 'binaryPropertyName',
+				type: 'string',
+				default: 'data',
+				displayOptions: {
+					show: {
+						operation: ['create', 'update'],
+						bodyType: ['binaryData'],
+					},
+				},
+				description: 'Name of the binary property which contains the data to be sent',
+			},
+			{
+				displayName: 'Binary Field Name',
+				name: 'binaryFieldName',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						operation: ['create', 'update'],
+						bodyType: ['binaryData'],
+					},
+				},
+				description: 'Name of the binary field according to the collection\'s schema. If left empty, the binary data will be sent as a file attachment.',
+			}
 		],
 	};
 
