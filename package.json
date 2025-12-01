@@ -2,11 +2,11 @@
   "name": "n8n-nodes-pocketbase",
   "version": "0.3.2",
   "description": "Interact with your PocketBase instance",
+  "license": "MIT",
+  "homepage": "",
   "keywords": [
     "n8n-community-node-package"
   ],
-  "license": "MIT",
-  "homepage": "",
   "author": {
     "name": "Philipp Fehr",
     "email": "philipp@thefehr.me"
@@ -16,39 +16,35 @@
     "url": "git+https://github.com/TheFehr/n8n-nodes-pocketbase.git"
   },
   "scripts": {
-    "build": "tsc && gulp build:icons",
-    "dev": "tsc --watch",
-    "format": "prettier nodes credentials --write",
-    "lint": "eslint nodes credentials package.json",
-    "lintfix": "eslint nodes credentials package.json --fix",
-    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
+    "build": "n8n-node build",
+    "build:watch": "tsc --watch",
+    "dev": "n8n-node dev",
+    "lint": "n8n-node lint",
+    "lint:fix": "n8n-node lint --fix",
+    "release": "n8n-node release",
+    "prepublishOnly": "n8n-node prerelease"
   },
   "files": [
     "dist"
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
+    "strict": true,
     "credentials": [
       "dist/credentials/PocketBaseApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/PocketBase/PocketBase.node.js",
-      "dist/nodes/PocketBaseSend/PocketBaseSend.node.js"
+      "dist/nodes/PocketBase/PocketBase.node.js"
     ]
   },
   "devDependencies": {
-    "@types/request-promise-native": "~1.0.15",
-    "@typescript-eslint/parser": "^7.18.0",
-    "eslint": "^8.57.1",
-    "eslint-plugin-n8n-nodes-base": "^1.16.4",
-    "gulp": "^5.0.1",
-    "prettier": "^3.6.2",
-    "typescript": "^5.9.3"
+    "@n8n/node-cli": "*",
+    "eslint": "9.32.0",
+    "prettier": "3.6.2",
+    "release-it": "^19.0.4",
+    "typescript": "5.9.2"
   },
   "peerDependencies": {
-    "n8n-workflow": "^1.17.0"
-  },
-  "dependencies": {
-    "pocketbase": "^0.15.3"
+    "n8n-workflow": "*"
   }
 }
