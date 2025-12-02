@@ -14,13 +14,13 @@ import { LoadOptions } from './LoadOptions';
 
 export class PocketbaseHttp implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'PocketBase',
-		name: 'pocketbase',
+		displayName: 'PocketBase HTTP API',
+		name: 'pocketbaseHttp',
 		icon: 'file:pocketbase.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + " " + $parameter["resource"]}}',
-		description: 'Consume PocketBase API',
+		description: 'Consume PocketBase HTTP API',
 		defaults: {
 			name: 'PocketBase',
 		},
