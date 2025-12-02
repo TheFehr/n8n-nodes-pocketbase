@@ -4,13 +4,8 @@
   "description": "Interact with your PocketBase instance",
   "license": "MIT",
   "homepage": "",
-  "keywords": [
-    "n8n-community-node-package"
-  ],
-  "author": {
-    "name": "Philipp Fehr",
-    "email": "philipp@thefehr.me"
-  },
+  "keywords": ["n8n-community-node-package"],
+  "author": { "name": "Philipp Fehr", "email": "philipp@thefehr.ch" },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/TheFehr/n8n-nodes-pocketbase.git"
@@ -24,18 +19,12 @@
     "release": "n8n-node release",
     "prepublishOnly": "n8n-node prerelease"
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "n8n": {
     "n8nNodesApiVersion": 1,
     "strict": true,
-    "credentials": [
-      "dist/credentials/PocketBaseApi.credentials.js"
-    ],
-    "nodes": [
-      "dist/nodes/PocketbaseHttp/PocketbaseHttp.node.js"
-    ]
+    "credentials": ["dist/credentials/PocketbaseHttpApi.credentials.js"],
+    "nodes": ["dist/nodes/PocketbaseHttp/PocketbaseHttp.node.js"]
   },
   "devDependencies": {
     "@n8n/node-cli": "*",
@@ -44,7 +33,5 @@
     "release-it": "^19.0.4",
     "typescript": "5.9.2"
   },
-  "peerDependencies": {
-    "n8n-workflow": "*"
-  }
+  "peerDependencies": { "n8n-workflow": "*" }
 }
