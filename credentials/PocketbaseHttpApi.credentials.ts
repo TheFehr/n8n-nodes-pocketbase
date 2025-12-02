@@ -15,8 +15,8 @@ interface Credentials {
 	password: string;
 }
 
-export class PocketBaseHttpApi implements ICredentialType {
-	name = 'pocketBaseHttpApi';
+export class PocketbaseHttpApi implements ICredentialType {
+	name = 'pocketbaseHttpApi';
 	displayName = 'PocketBase HTTP API';
 	documentationUrl = 'https://pocketbase.io/docs/authentication/';
 	properties: INodeProperties[] = [
