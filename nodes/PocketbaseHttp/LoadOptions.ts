@@ -47,7 +47,7 @@ export const LoadOptions = {
 			method: 'GET',
 		});
 
-		items.forEach(({ name }: { name: string }) => {
+		items?.forEach(({ name }: { name: string }) => {
 			returnData.push({
 				name,
 				value: name,
@@ -60,7 +60,7 @@ export const LoadOptions = {
 		const returnData: INodePropertyOptions[] = [];
 		const fields = await loadPocketBaseFields.call(this);
 
-		fields.forEach(({ name, type }) => {
+		fields?.forEach(({ name, type }) => {
 			if (type === 'relation') {
 				returnData.push({
 					name: `All fields from relation '${name}'`,
@@ -82,7 +82,7 @@ export const LoadOptions = {
 		const returnData: INodePropertyOptions[] = [];
 		const fields = await loadPocketBaseFields.call(this);
 
-		fields.forEach(({ name, type }) => {
+		fields?.forEach(({ name, type }) => {
 			if (type !== 'relation') {
 				return;
 			}
@@ -103,7 +103,7 @@ export const LoadOptions = {
 			method: 'GET',
 		});
 
-		items.forEach(({ id, ...data }: { id: string }) => {
+		items?.forEach(({ id, ...data }: { id: string }) => {
 			const name = Object.entries(data).filter(([key]) => {
 				return key === 'name';
 			})?.[0]?.[1] as string | undefined;

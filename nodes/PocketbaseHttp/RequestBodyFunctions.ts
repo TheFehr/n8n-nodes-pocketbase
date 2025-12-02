@@ -19,7 +19,7 @@ export async function prepareRequestBody(
 			this.getNodeParameter('fields', {
 				assignments: [],
 			}) as AssignmentCollectionValue
-		).assignments.forEach(function ({ name, value }) {
+		)?.assignments?.forEach(function ({ name, value }) {
 			formData.append(name, value);
 		});
 	}

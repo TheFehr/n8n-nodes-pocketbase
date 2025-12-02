@@ -1,8 +1,4 @@
-import {
-	INodeType,
-	INodeTypeDescription,
-	NodeConnectionTypes
-} from 'n8n-workflow';
+import { NodeConnectionTypes, type INodeType, type INodeTypeDescription } from 'n8n-workflow';
 import {
 	pagination,
 	recordCreatePreSendAction,
@@ -10,28 +6,20 @@ import {
 	recordViewPostReceiveAction,
 	recordViewPreSendAction,
 } from './GenericFunctions';
-import { LoadOptions } from './LoadOptions';
 
 export class PocketbaseHttp implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'PocketBase HTTP API',
+		displayName: 'Pocketbase HTTP',
 		name: 'pocketbaseHttp',
-		icon: 'file:pocketbase.svg',
+		icon: { light: 'file:pocketbaseHttp.svg', dark: 'file:pocketbaseHttp.dark.svg' },
 		group: ['transform'],
 		version: 1,
-		subtitle: '={{$parameter["operation"] + " " + $parameter["resource"]}}',
-		description: 'Consume PocketBase HTTP API',
+		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
+		description: 'Interact with the Pocketbase HTTP API',
 		defaults: {
-			name: 'PocketBase',
+			name: 'Pocketbase HTTP',
 		},
 		usableAsTool: true,
-		codex: {
-			categories: ['AI'],
-			subcategories: {
-				AI: ['Tools'],
-				Tools: ['Other Tools'],
-			},
-		},
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [
@@ -48,7 +36,6 @@ export class PocketbaseHttp implements INodeType {
 				'Content-Type': 'application/json',
 			},
 		},
-
 		properties: [
 			{
 				displayName: 'Collection Name or ID',
@@ -341,9 +328,5 @@ export class PocketbaseHttp implements INodeType {
 				description: 'Name of the binary field according to the collection\'s schema. If left empty, the binary data will be sent as a file attachment.',
 			}
 		],
-	};
-
-	methods = {
-		loadOptions: LoadOptions,
 	};
 }
