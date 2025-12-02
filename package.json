@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-pocketbase",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Interact with your PocketBase instance",
   "license": "MIT",
   "homepage": "",
