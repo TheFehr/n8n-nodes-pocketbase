@@ -6,6 +6,7 @@ import {
 	recordViewPostReceiveAction,
 	recordViewPreSendAction,
 } from './GenericFunctions';
+import { LoadOptions } from './LoadOptions';
 
 export class PocketbaseHttp implements INodeType {
 	description: INodeTypeDescription = {
@@ -161,9 +162,9 @@ export class PocketbaseHttp implements INodeType {
 						routing: {
 							send: {
 								type: 'query',
-								property: 'perPage'
+								property: 'perPage',
 							},
-						}
+						},
 					},
 					{
 						// eslint-disable-next-line n8n-nodes-base/node-param-display-name-wrong-for-dynamic-multi-options
@@ -213,9 +214,9 @@ export class PocketbaseHttp implements INodeType {
 						routing: {
 							send: {
 								type: 'query',
-								property: 'filter'
+								property: 'filter',
 							},
-						}
+						},
 					},
 
 					{
@@ -229,9 +230,9 @@ export class PocketbaseHttp implements INodeType {
 						routing: {
 							send: {
 								type: 'query',
-								property: 'page'
+								property: 'page',
 							},
-						}
+						},
 					},
 					{
 						displayName: 'Sort',
@@ -241,9 +242,9 @@ export class PocketbaseHttp implements INodeType {
 						routing: {
 							send: {
 								type: 'query',
-								property: 'sort'
+								property: 'sort',
 							},
-						}
+						},
 					},
 				],
 			},
@@ -254,7 +255,7 @@ export class PocketbaseHttp implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['create', 'update'],
-					}
+					},
 				},
 				default: ['fields'],
 				options: [
@@ -269,8 +270,8 @@ export class PocketbaseHttp implements INodeType {
 					{
 						name: 'Binary Data',
 						value: 'binaryData',
-					}
-				]
+					},
+				],
 			},
 			{
 				displayName: 'Fields',
@@ -299,7 +300,7 @@ export class PocketbaseHttp implements INodeType {
 					},
 				},
 				default: '',
-				placeholder: 'Body according to the collection\'s schema',
+				placeholder: "Body according to the collection's schema",
 			},
 			{
 				displayName: 'Binary Property Name',
@@ -325,8 +326,13 @@ export class PocketbaseHttp implements INodeType {
 						bodyType: ['binaryData'],
 					},
 				},
-				description: 'Name of the binary field according to the collection\'s schema. If left empty, the binary data will be sent as a file attachment.',
-			}
+				description:
+					"Name of the binary field according to the collection's schema. If left empty, the binary data will be sent as a file attachment.",
+			},
 		],
+	};
+
+	methods = {
+		loadOptions: LoadOptions,
 	};
 }

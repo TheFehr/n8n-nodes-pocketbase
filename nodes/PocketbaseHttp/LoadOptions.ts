@@ -26,11 +26,11 @@ async function loadPocketBaseFields(
 	this: ILoadOptionsFunctions,
 	collectionName: string | null = null,
 ): Promise<PocketBaseField[]> {
-	const { url } = await this.getCredentials('pocketBaseApi');
+	const { url } = await this.getCredentials('pocketbaseHttpApi');
 	const resource = collectionName
 		? collectionName
 		: (this.getNodeParameter('resource') as unknown as string);
-	const { fields } = await this.helpers.httpRequestWithAuthentication.call(this, 'pocketBaseApi', {
+	const { fields } = await this.helpers.httpRequestWithAuthentication.call(this, 'pocketbaseHttpApi', {
 		url: `${url}/api/collections/${resource}`,
 		method: 'GET',
 	});
@@ -41,8 +41,8 @@ async function loadPocketBaseFields(
 export const LoadOptions = {
 	async getCollections(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 		const returnData: INodePropertyOptions[] = [];
-		const { url } = await this.getCredentials('pocketBaseApi');
-		const { items } = await this.helpers.httpRequestWithAuthentication.call(this, 'pocketBaseApi', {
+		const { url } = await this.getCredentials('pocketbaseHttpApi');
+		const { items } = await this.helpers.httpRequestWithAuthentication.call(this, 'pocketbaseHttpApi', {
 			url: `${url}/api/collections`,
 			method: 'GET',
 		});
@@ -96,9 +96,9 @@ export const LoadOptions = {
 	},
 	async getRows(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 		const returnData: INodePropertyOptions[] = [];
-		const { url } = await this.getCredentials('pocketBaseApi');
+		const { url } = await this.getCredentials('pocketbaseHttpApi');
 		const resource = this.getNodeParameter('resource') as unknown as string;
-		const { items } = await this.helpers.httpRequestWithAuthentication.call(this, 'pocketBaseApi', {
+		const { items } = await this.helpers.httpRequestWithAuthentication.call(this, 'pocketbaseHttpApi', {
 			url: `${url}/api/collections/${resource}/records?sort=-created`,
 			method: 'GET',
 		});

@@ -10,7 +10,6 @@ import {
 
 interface Credentials {
 	url: string;
-	userCollection: string;
 	username: string;
 	password: string;
 }
@@ -28,23 +27,14 @@ export class PocketbaseHttpApi implements ICredentialType {
 			required: true,
 		},
 		{
-			displayName: 'User collection name',
-			description:
-				'The name of the collection that contains the user (use _superusers if you want to sign in with an administrator account)',
-			name: 'userCollection',
-			type: 'string',
-			default: '_superusers',
-			required: true,
-		},
-		{
-			displayName: 'Username',
+			displayName: 'Admin (_superusers) username',
 			name: 'username',
 			type: 'string',
 			default: '',
 			required: true,
 		},
 		{
-			displayName: 'Password',
+			displayName: 'Admin (_superusers) password',
 			name: 'password',
 			type: 'string',
 			typeOptions: {
@@ -68,7 +58,7 @@ export class PocketbaseHttpApi implements ICredentialType {
 	test: ICredentialTestRequest = {
 		request: {
 			baseURL: '={{$credentials?.url}}',
-			url: '=/api/collections/{{$credentials?.userCollection}}/auth-with-password',
+			url: '=/api/collections/_superusers/auth-with-password',
 			method: 'POST',
 			body: {
 				identity: '={{$credentials?.username}}',
@@ -94,11 +84,11 @@ export class PocketbaseHttpApi implements ICredentialType {
 	};
 
 	async preAuthentication(this: IHttpRequestHelper, credentials: ICredentialDataDecryptedObject) {
-		const { username, password, url, userCollection } = credentials as unknown as Credentials;
+		const { username, password, url } = credentials as unknown as Credentials;
 
 		const { token } = (await this.helpers.httpRequest({
 			method: 'POST',
-			url: `${url.endsWith('/') ? url.slice(0, -1) : url}/api/collections/${userCollection}/auth-with-password`,
+			url: `${url.endsWith('/') ? url.slice(0, -1) : url}/api/collections/_superusers/auth-with-password`,
 			body: {
 				identity: username,
 				password,
