@@ -24,7 +24,7 @@ export class PocketbaseHttp implements INodeType {
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [
 			{
-				name: 'pocketBaseHttpApi',
+				name: 'pocketbaseHttpApi',
 				required: true,
 			},
 		],
