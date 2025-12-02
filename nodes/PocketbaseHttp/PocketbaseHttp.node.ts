@@ -12,10 +12,10 @@ import {
 } from './GenericFunctions';
 import { LoadOptions } from './LoadOptions';
 
-export class PocketBase implements INodeType {
+export class PocketbaseHttp implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'PocketBase',
-		name: 'pocketBase',
+		name: 'pocketbase',
 		icon: 'file:pocketbase.svg',
 		group: ['transform'],
 		version: 1,
@@ -264,6 +264,11 @@ export class PocketBase implements INodeType {
 				displayName: 'Body Type',
 				name: 'bodyType',
 				type: 'multiOptions',
+				displayOptions: {
+					show: {
+						operation: ['create', 'update'],
+					}
+				},
 				default: ['fields'],
 				options: [
 					{

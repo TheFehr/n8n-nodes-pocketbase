@@ -34,7 +34,7 @@
       "dist/credentials/PocketBaseApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/PocketBase/PocketBase.node.js"
+      "dist/nodes/PocketbaseHttp/PocketbaseHttp.node.js"
     ]
   },
   "devDependencies": {
