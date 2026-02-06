@@ -45,6 +45,7 @@ export const LoadOptions = {
 		const { items } = await this.helpers.httpRequestWithAuthentication.call(this, 'pocketBaseApi', {
 			url: `${url}/api/collections`,
 			method: 'GET',
+			qs: { perPage: 500 },
 		});
 
 		items.forEach(({ name }: { name: string }) => {
