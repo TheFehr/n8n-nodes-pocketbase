@@ -40,21 +40,31 @@ async function loadPocketBaseFields(
 
 export const LoadOptions = {
 	async getCollections(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-		const returnData: INodePropertyOptions[] = [];
 		const { url } = await this.getCredentials('pocketbaseHttpApi');
-		const { items } = await this.helpers.httpRequestWithAuthentication.call(this, 'pocketbaseHttpApi', {
-			url: `${url}/api/collections`,
-			method: 'GET',
-		});
 
-		items?.forEach(({ name }: { name: string }) => {
-			returnData.push({
-				name,
-				value: name,
-			});
-		});
+		const items: {name: string}[] = [];
+		let page: number = 1;
+		let totalPages: number = 1;
 
-		return returnData;
+		do {
+			const { items: pageItems, totalPages: pageTotalPages } = await this.helpers.httpRequestWithAuthentication.call(
+				this,
+				'pocketbaseHttpApi',
+				{
+					url: `${url}/api/collections`,
+					method: 'GET',
+					qs: { page },
+				},
+			);
+
+			items.push(...pageItems);
+			if (totalPages === 1) {
+				totalPages = pageTotalPages;
+			}
+			page++;
+		} while (page <= totalPages);
+
+		return items.map(({ name }) => ({ name, value: name })) as INodePropertyOptions[];
 	},
 	async getFields(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 		const returnData: INodePropertyOptions[] = [];
