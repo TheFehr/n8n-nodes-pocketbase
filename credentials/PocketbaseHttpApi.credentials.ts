@@ -89,6 +89,7 @@ export class PocketbaseHttpApi implements ICredentialType {
         Authorization: "={{ $credentials.token }}",
       },
     },
+    // @ts-ignore
     on_error: {
       rules: [
         {
