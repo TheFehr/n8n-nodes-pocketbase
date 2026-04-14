@@ -25,9 +25,13 @@ export async function prepareRequestBody(
   }
 
   if (bodyType.includes("bodyJson")) {
-    Object.entries(requestOptions.body).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
+    if (typeof requestOptions.body === "object" && requestOptions.body !== null) {
+      Object.entries(requestOptions.body).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+    } else if (requestOptions.body !== undefined) {
+      formData.append("body", requestOptions.body);
+    }
   }
 
   if (bodyType.includes("binaryData")) {
@@ -40,7 +44,12 @@ export async function prepareRequestBody(
   Object.assign(requestOptions.headers, formData.getHeaders());
 
   requestOptions.body = formData;
-  this.logger.info(`Request URL: ${requestOptions.url} | ${JSON.stringify(requestOptions.body)}`);
+  const isMultipart =
+    requestOptions.body instanceof FormData ||
+    (requestOptions.headers &&
+      requestOptions.headers["content-type"]?.toString().includes("multipart"));
+  const loggedBody = isMultipart ? "[multipart body omitted]" : JSON.stringify(requestOptions.body);
+  this.logger.info(`Request URL: ${requestOptions.url} | ${loggedBody}`);
 
   return requestOptions;
 }

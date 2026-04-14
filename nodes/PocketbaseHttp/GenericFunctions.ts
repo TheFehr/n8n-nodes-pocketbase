@@ -58,7 +58,7 @@ export async function pagination(
       (responseData[0].json.items as IDataObject[]).map((item) => ({ json: item })),
     );
     page++;
-  } while (page < totalPages);
+  } while (page <= totalPages);
 
   return executions;
 }

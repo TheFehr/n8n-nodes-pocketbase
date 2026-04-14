@@ -58,4 +58,34 @@ describe("PocketbaseAuth", () => {
       },
     });
   });
+
+  it("should throw error if url is missing", async () => {
+    const mockThis = {} as unknown as IHttpRequestHelper;
+    const credentials = {
+      username: "test@example.com",
+      password: "password123",
+    } as unknown as ICredentialDataDecryptedObject;
+
+    await expect(login.call(mockThis, credentials)).rejects.toThrow(
+      "PocketBase URL is missing or invalid in Credentials",
+    );
+  });
+
+  it("should handle auth failure", async () => {
+    const mockHttpRequest = vi.fn().mockRejectedValue({ status: 401, message: "Unauthorized" });
+
+    const mockThis = {
+      helpers: {
+        httpRequest: mockHttpRequest,
+      },
+    } as unknown as IHttpRequestHelper;
+
+    const credentials = {
+      url: "http://localhost:8090",
+      username: "test@example.com",
+      password: "wrongpassword",
+    } as unknown as ICredentialDataDecryptedObject;
+
+    await expect(login.call(mockThis, credentials)).rejects.toMatchObject({ status: 401 });
+  });
 });

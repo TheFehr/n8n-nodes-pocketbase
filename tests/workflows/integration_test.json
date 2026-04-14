@@ -24,11 +24,11 @@
           "assignments": [
             {
               "name": "username",
-              "value": "testuser"
+              "value": "=testuser{{$now.toMillis()}}"
             },
             {
               "name": "email",
-              "value": "user@example.com"
+              "value": "=user{{$now.toMillis()}}@example.com"
             },
             {
               "name": "password",

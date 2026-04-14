@@ -7,7 +7,7 @@ import {
   IHttpRequestHelper,
   INodeProperties,
 } from "n8n-workflow";
-import { login } from "../nodes/PocketbaseHttp/PocketbaseAuth";
+import { login, refresh } from "../nodes/PocketbaseHttp/PocketbaseAuth";
 
 export class PocketbaseHttpApi implements ICredentialType {
   name = "pocketbaseHttpApi";
@@ -52,7 +52,7 @@ export class PocketbaseHttpApi implements ICredentialType {
 
   test: ICredentialTestRequest = {
     request: {
-      baseURL: "={{$credentials?.url}}",
+      baseURL: "={{$credentials?.url?.replace(/\\/$/, '')}}",
       url: "=/api/collections/_superusers/auth-with-password",
       method: "POST",
       body: {
@@ -79,6 +79,9 @@ export class PocketbaseHttpApi implements ICredentialType {
   };
 
   async preAuthentication(this: IHttpRequestHelper, credentials: ICredentialDataDecryptedObject) {
+    if (credentials.token) {
+      return await refresh.call(this, credentials);
+    }
     return await login.call(this, credentials);
   }
 
@@ -88,29 +91,6 @@ export class PocketbaseHttpApi implements ICredentialType {
       headers: {
         Authorization: "={{ $credentials.token }}",
       },
-    },
-    // @ts-ignore
-    on_error: {
-      rules: [
-        {
-          type: "responseCode",
-          properties: {
-            value: 401, // Token expired or invalid
-          },
-        },
-        {
-          type: "responseCode",
-          properties: {
-            value: 403, // Permission denied / Invalidated session
-          },
-        },
-        {
-          type: "responseCode",
-          properties: {
-            value: 404, // "Missing auth record context" - triggers re-auth
-          },
-        },
-      ],
     },
   };
 

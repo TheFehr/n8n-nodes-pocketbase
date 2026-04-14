@@ -1,6 +1,6 @@
 services:
   pocketbase:
-    image: ghcr.io/muchobien/pocketbase:latest
+    image: ghcr.io/muchobien/pocketbase:0.36.9
     ports:
       - "8090:8090"
     command:
@@ -10,7 +10,7 @@ services:
       - --dev
 
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:2.15.1
     ports:
       - "5678:5678"
     environment:

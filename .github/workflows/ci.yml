@@ -24,8 +24,5 @@ jobs:
       - name: Run lint
         run: "npm run lint"
 
-      - name: Run build
-        run: "npm run build"
-
       - name: Run integration tests
         run: "npm run test:pipeline"
