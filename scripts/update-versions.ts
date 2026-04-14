@@ -171,7 +171,7 @@ async function updateNodeJson(packageName: string, dryRun: boolean) {
 	}
 
 	// Update URLs in documentation
-	const urlRegex = /https:\/\/github\.com\/([^\/]+)\/([^\/#\s"]+)(#[^\s"]*)?/g;
+	const urlRegex = /https:\/\/github\.com\/([^/]+)\/([^/#\s"]+)(#[^\s"]*)?/g;
 	const originalContent = JSON.stringify(nodeJson, null, 2);
 	const updatedContent = originalContent.replace(urlRegex, (match, org, repo, anchor) => {
 		if (repo !== packageName && (repo === "n8n-nodes-pocketbase" || repo.startsWith("n8n-nodes-"))) {
