@@ -27,9 +27,9 @@ jobs:
         id: check_updates
         run: |
           if npm run version:check; then
-            echo "updates_found=false" >> $GITHUB_OUTPUT
+            echo "updates_found=false" >> "$GITHUB_OUTPUT"
           else
-            echo "updates_found=true" >> $GITHUB_OUTPUT
+            echo "updates_found=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run pipeline
@@ -41,7 +41,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add README.md
+          git add .
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else

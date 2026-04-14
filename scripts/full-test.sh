@@ -60,7 +60,7 @@ docker compose -f docker-compose.test.yml stop n8n
 docker compose -f docker-compose.test.yml run --rm \
   --entrypoint /bin/sh n8n -c "
     mkdir -p /home/node/.n8n/nodes/node_modules && \
-    ln -sf /home/node/custom-nodes /home/node/.n8n/nodes/node_modules/$PACKAGE_NAME && \
+    ln -sf /home/node/custom-nodes \"/home/node/.n8n/nodes/node_modules/$PACKAGE_NAME\" && \
     n8n import:credentials --input=/home/node/custom-nodes/tests/workflows/integration_credentials.json && \
     n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_test.json && \
     n8n execute --id=1
