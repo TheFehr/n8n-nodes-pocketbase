@@ -1,0 +1,29 @@
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    ports:
+      - "8090:8090"
+    command:
+      - serve
+      - --http=0.0.0.0:8090
+      - --dir=/pb_data
+      - --dev
+
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_COMMUNITY_PACKAGES_ENABLED=true
+      - N8N_API_KEY=test_api_key
+      - N8N_METRICS_ENABLED=true
+      - N8N_TASK_BROKER_PORT=5680
+      - N8N_CUSTOM_EXTENSIONS=/home/node/custom-extensions
+    volumes:
+      - .:/home/node/custom-nodes
+    # We would need to tell n8n to load the custom node from the volume
+    # Usually this is done by installing it in ~/.n8n/nodes
+    # For a test run, we can use an entrypoint script to symlink or install
+    entrypoint: /bin/sh -c "mkdir -p /home/node/custom-extensions/node_modules && ln -s /home/node/custom-nodes /home/node/custom-extensions/node_modules/n8n-nodes-pocketbase && n8n"
+    depends_on:
+      - pocketbase
