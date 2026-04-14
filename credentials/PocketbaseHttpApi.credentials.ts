@@ -104,6 +104,28 @@ export class PocketbaseHttpApi implements ICredentialType {
 				Authorization: '={{ $credentials.token }}',
 			},
 		},
+		on_error: {
+			rules: [
+				{
+					type: 'responseCode',
+					properties: {
+						value: 401, // Token expired or invalid
+					},
+				},
+				{
+					type: 'responseCode',
+					properties: {
+						value: 403, // Permission denied / Invalidated session
+					},
+				},
+				{
+					type: 'responseCode',
+					properties: {
+						value: 404, // "Missing auth record context" - triggers re-auth
+					},
+				},
+			],
+		},
 	};
 
 	icon = 'file:pocketbase.svg' as IconFile;
