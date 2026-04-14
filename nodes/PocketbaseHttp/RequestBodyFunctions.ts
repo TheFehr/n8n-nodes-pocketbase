@@ -37,7 +37,7 @@ export async function prepareRequestBody(
   if (!requestOptions.headers) {
     requestOptions.headers = {};
   }
-  requestOptions.headers["Content-Type"] = "multipart/form-data";
+  Object.assign(requestOptions.headers, formData.getHeaders());
 
   requestOptions.body = formData;
   this.logger.info(`Request URL: ${requestOptions.url} | ${JSON.stringify(requestOptions.body)}`);

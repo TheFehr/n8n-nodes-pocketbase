@@ -18,12 +18,11 @@ services:
       - N8N_API_KEY=test_api_key
       - N8N_METRICS_ENABLED=true
       - N8N_TASK_BROKER_PORT=5680
-      - N8N_CUSTOM_EXTENSIONS=/home/node/custom-extensions
     volumes:
       - .:/home/node/custom-nodes
     # We would need to tell n8n to load the custom node from the volume
     # Usually this is done by installing it in ~/.n8n/nodes
     # For a test run, we can use an entrypoint script to symlink or install
-    entrypoint: /bin/sh -c "mkdir -p /home/node/custom-extensions/node_modules && ln -s /home/node/custom-nodes /home/node/custom-extensions/node_modules/n8n-nodes-pocketbase && n8n"
+    entrypoint: /bin/sh -c "mkdir -p /home/node/.n8n/nodes/node_modules && ln -sf /home/node/custom-nodes /home/node/.n8n/nodes/node_modules/n8n-nodes-pocketbase && n8n"
     depends_on:
       - pocketbase

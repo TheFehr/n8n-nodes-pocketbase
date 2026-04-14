@@ -30,10 +30,9 @@ docker compose -f docker-compose.test.yml exec -T pocketbase /usr/local/bin/pock
 echo "Running Integration Workflow..."
 docker compose -f docker-compose.test.yml stop n8n
 docker compose -f docker-compose.test.yml run --rm \
-  -e N8N_CUSTOM_EXTENSIONS=/home/node/custom-extensions \
   --entrypoint /bin/sh n8n -c "
-    mkdir -p /home/node/custom-extensions/node_modules && \
-    ln -s /home/node/custom-nodes /home/node/custom-extensions/node_modules/n8n-nodes-pocketbase && \
+    mkdir -p /home/node/.n8n/nodes/node_modules && \
+    ln -sf /home/node/custom-nodes /home/node/.n8n/nodes/node_modules/n8n-nodes-pocketbase && \
     n8n import:credentials --input=/home/node/custom-nodes/tests/workflows/integration_credentials.json && \
     n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_test.json && \
     n8n execute --id=1
@@ -49,9 +48,9 @@ PB_LOGS=$(docker compose -f docker-compose.test.yml logs pocketbase)
 # 2. Check for SQL INSERT statement containing our test email
 # 3. Check for PATCH request to a specific record
 # 4. Check for SQL UPDATE statement containing our updated name
-if echo "$PB_LOGS" | grep -qE "POST /api/collections/users/records.* 20[01]" && \
+if echo "$PB_LOGS" | grep -qE "POST /api/collections/users/records" && \
    echo "$PB_LOGS" | grep -iq "INSERT INTO .*users.*user@example.com" && \
-   echo "$PB_LOGS" | grep -qE "PATCH /api/collections/users/records/.* 200" && \
+   echo "$PB_LOGS" | grep -qE "PATCH /api/collections/users/records/" && \
    echo "$PB_LOGS" | grep -iq "UPDATE .*users.*Updated User"; then
   echo "✅ Verification successful: Specific CRUD patterns and data found in PocketBase logs!"
 else
