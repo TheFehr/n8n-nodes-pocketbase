@@ -30,6 +30,7 @@
     "test:run": "vitest run",
     "test:pipeline": "bash scripts/full-test.sh",
     "version:update": "tsx scripts/update-versions.ts",
+    "version:check": "tsx scripts/update-versions.ts --check",
     "release": "n8n-node release",
     "prepublishOnly": "n8n-node prerelease"
   },

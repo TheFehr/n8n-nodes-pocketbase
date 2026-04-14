@@ -37,11 +37,40 @@ async function updateReadme(pbVersion: string, n8nVersion: string) {
 
 async function main() {
   try {
+    const isCheck = process.argv.includes("--check");
+
     const pbVersion = await getLatestPocketbaseVersion();
     const n8nVersion = await getLatestN8nVersion();
 
     console.log(`Latest PocketBase: ${pbVersion}`);
     console.log(`Latest n8n: ${n8nVersion}`);
+
+    const readmePath = join(process.cwd(), "README.md");
+    const content = readFileSync(readmePath, "utf8");
+
+    const regex =
+      /This was developed for version ([\d.]+) of n8n and version ([\d.]+) of PocketBase\./;
+    const match = content.match(regex);
+
+    if (match) {
+      const currentN8n = match[1];
+      const currentPB = match[2];
+
+      if (currentN8n === n8nVersion && currentPB === pbVersion) {
+        console.log("Everything is up to date.");
+        process.exit(0);
+      } else {
+        console.log(`Updates found: n8n (${currentN8n} -> ${n8nVersion}), PocketBase (${currentPB} -> ${pbVersion})`);
+        if (isCheck) {
+          process.exit(1);
+        }
+      }
+    } else {
+      console.warn("Could not find exact version sentence in README.md");
+      if (isCheck) {
+        process.exit(1);
+      }
+    }
 
     await updateReadme(pbVersion, n8nVersion);
     console.log("README.md updated successfully.");
