@@ -2,7 +2,6 @@
   "name": "n8n-nodes-pocketbase",
   "version": "1.1.1",
   "description": "Interact with your PocketBase instance",
-  "pocketbaseVersion": "0.36.9",
   "keywords": [
     "n8n-community-node-package"
   ],
@@ -58,5 +57,6 @@
     "nodes": [
       "dist/nodes/PocketbaseHttp/PocketbaseHttp.node.js"
     ]
-  }
+  },
+  "pocketbaseVersion": "0.36.9"
 }

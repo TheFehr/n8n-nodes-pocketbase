@@ -8,18 +8,13 @@
       "name": "When clicking ‘Test workflow’",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [
-        100,
-        100
-      ]
+      "position": [100, 100]
     },
     {
       "parameters": {
         "resource": "users",
         "operation": "create",
-        "bodyType": [
-          "fields"
-        ],
+        "bodyType": ["fields"],
         "fields": {
           "assignments": [
             {
@@ -45,10 +40,7 @@
       "name": "Pocketbase Create",
       "type": "n8n-nodes-pocketbase.pocketbaseHttp",
       "typeVersion": 1,
-      "position": [
-        300,
-        100
-      ],
+      "position": [300, 100],
       "credentials": {
         "pocketbaseHttpApi": {
           "id": "pocketbase-cred-id"
@@ -60,9 +52,7 @@
         "resource": "users",
         "operation": "update",
         "elementId": "={{$node[\"Pocketbase Create\"].json[\"id\"]}}",
-        "bodyType": [
-          "fields"
-        ],
+        "bodyType": ["fields"],
         "fields": {
           "assignments": [
             {
@@ -76,10 +66,7 @@
       "name": "Pocketbase Update",
       "type": "n8n-nodes-pocketbase.pocketbaseHttp",
       "typeVersion": 1,
-      "position": [
-        500,
-        100
-      ],
+      "position": [500, 100],
       "credentials": {
         "pocketbaseHttpApi": {
           "id": "pocketbase-cred-id"
@@ -96,10 +83,7 @@
       "name": "Pocketbase View",
       "type": "n8n-nodes-pocketbase.pocketbaseHttp",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ],
+      "position": [700, 100],
       "credentials": {
         "pocketbaseHttpApi": {
           "id": "pocketbase-cred-id"
@@ -115,10 +99,7 @@
       "name": "Pocketbase List",
       "type": "n8n-nodes-pocketbase.pocketbaseHttp",
       "typeVersion": 1,
-      "position": [
-        900,
-        100
-      ],
+      "position": [900, 100],
       "credentials": {
         "pocketbaseHttpApi": {
           "id": "pocketbase-cred-id"
@@ -172,9 +153,7 @@
       ]
     },
     "Pocketbase List": {
-      "main": [
-        []
-      ]
+      "main": [[]]
     }
   }
 }

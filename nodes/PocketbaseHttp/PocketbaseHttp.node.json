@@ -2,10 +2,7 @@
   "node": "n8n-nodes-pocketbase-http",
   "nodeVersion": "1.0",
   "codexVersion": "1.0",
-  "categories": [
-    "Development",
-    "Developer Tools"
-  ],
+  "categories": ["Development", "Developer Tools"],
   "resources": {
     "credentialDocumentation": [
       {

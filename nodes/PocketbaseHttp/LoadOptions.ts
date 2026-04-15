@@ -23,42 +23,42 @@ export interface PocketBaseField {
 }
 
 async function loadPocketBaseFields(
-	this: ILoadOptionsFunctions,
-	collectionName: string | null = null,
+  this: ILoadOptionsFunctions,
+  collectionName: string | null = null,
 ): Promise<PocketBaseField[]> {
-	const { url } = await this.getCredentials('pocketbaseHttpApi');
-	const normalizedUrl = (url as string).replace(/\/$/, '');
-	const resource = collectionName
-		? collectionName
-		: (this.getNodeParameter('resource') as unknown as string);
-	const { fields } = await this.helpers.httpRequestWithAuthentication.call(
-		this,
-		'pocketbaseHttpApi',
-		{
-			url: `${normalizedUrl}/api/collections/${resource}`,
-			method: 'GET',
-		},
-	);
+  const { url } = await this.getCredentials("pocketbaseHttpApi");
+  const normalizedUrl = (url as string).replace(/\/$/, "");
+  const resource = collectionName
+    ? collectionName
+    : (this.getNodeParameter("resource") as unknown as string);
+  const { fields } = await this.helpers.httpRequestWithAuthentication.call(
+    this,
+    "pocketbaseHttpApi",
+    {
+      url: `${normalizedUrl}/api/collections/${resource}`,
+      method: "GET",
+    },
+  );
 
   return fields as PocketBaseField[];
 }
 
 export const LoadOptions = {
   async getCollections(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-		const { url } = await this.getCredentials('pocketbaseHttpApi');
-		const normalizedUrl = (url as string).replace(/\/$/, '');
+    const { url } = await this.getCredentials("pocketbaseHttpApi");
+    const normalizedUrl = (url as string).replace(/\/$/, "");
 
-		const items: { name: string }[] = [];
-		let page: number = 1;
-		let totalPages: number = 1;
+    const items: { name: string }[] = [];
+    let page: number = 1;
+    let totalPages: number = 1;
 
-		do {
-			const { items: pageItems, totalPages: pageTotalPages } =
-				await this.helpers.httpRequestWithAuthentication.call(this, 'pocketbaseHttpApi', {
-					url: `${normalizedUrl}/api/collections`,
-					method: 'GET',
-					qs: { page },
-				});
+    do {
+      const { items: pageItems, totalPages: pageTotalPages } =
+        await this.helpers.httpRequestWithAuthentication.call(this, "pocketbaseHttpApi", {
+          url: `${normalizedUrl}/api/collections`,
+          method: "GET",
+          qs: { page },
+        });
 
       items.push(...pageItems);
       if (totalPages === 1) {
@@ -108,39 +108,39 @@ export const LoadOptions = {
     return returnData;
   },
   async getRows(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-		const returnData: INodePropertyOptions[] = [];
-		const { url } = await this.getCredentials('pocketbaseHttpApi');
-		const normalizedUrl = (url as string).replace(/\/$/, '');
-		const resource = this.getNodeParameter('resource') as unknown as string;
-		const { items } = await this.helpers.httpRequestWithAuthentication.call(
-			this,
-			'pocketbaseHttpApi',
-			{
-				url: `${normalizedUrl}/api/collections/${resource}/records?sort=-created`,
-				method: 'GET',
-			},
-		);
+    const returnData: INodePropertyOptions[] = [];
+    const { url } = await this.getCredentials("pocketbaseHttpApi");
+    const normalizedUrl = (url as string).replace(/\/$/, "");
+    const resource = this.getNodeParameter("resource") as unknown as string;
+    const { items } = await this.helpers.httpRequestWithAuthentication.call(
+      this,
+      "pocketbaseHttpApi",
+      {
+        url: `${normalizedUrl}/api/collections/${resource}/records?sort=-created`,
+        method: "GET",
+      },
+    );
 
-		items?.forEach(({ id, ...data }: { id: string }) => {
-			const name = Object.entries(data).filter(([key]) => {
-				return key === 'name';
-			})?.[0]?.[1] as string | undefined;
-			const shortColumns = Object.fromEntries(
-				Object.entries(data).filter(([, column]) => {
-					const serialized = JSON.stringify(column);
-					return serialized.length <= 20 && serialized.length > 2;
-				}),
-			);
+    items?.forEach(({ id, ...data }: { id: string }) => {
+      const name = Object.entries(data).filter(([key]) => {
+        return key === "name";
+      })?.[0]?.[1] as string | undefined;
+      const shortColumns = Object.fromEntries(
+        Object.entries(data).filter(([, column]) => {
+          const serialized = JSON.stringify(column);
+          return serialized.length <= 20 && serialized.length > 2;
+        }),
+      );
 
-			const fallback = JSON.stringify(shortColumns).substring(1, 100);
-			const label = name || (fallback && fallback !== '}' ? fallback : id);
+      const fallback = JSON.stringify(shortColumns).substring(1, 100);
+      const label = name || (fallback && fallback !== "}" ? fallback : id);
 
-			returnData.push({
-				name: label,
-				value: id,
-			});
-		});
+      returnData.push({
+        name: label,
+        value: id,
+      });
+    });
 
-		return returnData;
-	},
+    return returnData;
+  },
 };
