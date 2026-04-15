@@ -10,7 +10,8 @@ PocketBase is an open source backend consisting of embedded database (SQLite) wi
 [Operations](#operations)  
 [Credentials](#credentials)
 [Compatibility](#compatibility)  
-[Resources](#resources)  
+[Development](#development)  
+[Resources](#resources)
 
 ## Installation
 
@@ -23,16 +24,28 @@ Nearly all PocketBase operations for Base collections should be implemented.
 ## Credentials
 
 Ensure you have an Auth collection in your PocketBase defined and the "Username/Password" Auth method turned on.  
-Alternatively, you can use your administrator account and the "_superusers" collection which PocketBase creates automatically since [v0.23.0](https://github.com/pocketbase/pocketbase/releases/tag/v0.23.0).
+Alternatively, you can use your administrator account and the "\_superusers" collection which PocketBase creates automatically since [v0.23.0](https://github.com/pocketbase/pocketbase/releases/tag/v0.23.0).
 
 ## Compatibility
 
-This was developed for version 1.90.2 of n8n and version 0.27.2 of PocketBase.
+This was developed for version 2.15.1 of n8n and version 0.36.9 of PocketBase.
+
+## Development
+
+This project uses modern tooling for development:
+
+- **Linting**: [oxlint](https://oxc.rs/docs/guide/usage/linter.html) for fast linting.
+- **Formatting**: [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html) for fast formatting.
+- **Testing**: [vitest](https://vitest.dev/) for unit and integration tests.
+
+### Scripts
+
+- `npm run lint`: Lint the project.
+- `npm run format`: Format the project.
+- `npm test`: Run tests.
+- `npm run test:pipeline`: Run a full integration test against a PocketBase instance in Docker and update the compatibility section in `README.md`.
 
 ## Resources
 
-* [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
-* [PocketBase Introduction](https://pocketbase.io/docs/)
-
-
-
+- [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
+- [PocketBase Introduction](https://pocketbase.io/docs/)
