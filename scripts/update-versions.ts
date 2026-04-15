@@ -3,7 +3,16 @@ import { join } from "path";
 
 async function getLatestPocketbaseVersion() {
 	const url = "https://api.github.com/repos/pocketbase/pocketbase/releases/latest";
-	const response = await fetch(url);
+	const headers: HeadersInit = {
+		"Accept": "application/vnd.github.v3+json",
+	};
+	
+	// Add GitHub token if available (increases rate limit from 60 to 5000 requests/hour)
+	if (process.env.GITHUB_TOKEN) {
+		headers["Authorization"] = `token ${process.env.GITHUB_TOKEN}`;
+	}
+	
+	const response = await fetch(url, { headers });
 	if (!response.ok) {
 		throw new Error(`Failed to fetch PocketBase version from ${url}: ${response.status} ${response.statusText}`);
 	}
@@ -13,7 +22,16 @@ async function getLatestPocketbaseVersion() {
 
 async function getLatestN8nVersion() {
 	const url = "https://registry.npmjs.org/n8n/latest";
-	const response = await fetch(url);
+	const headers: HeadersInit = {
+		"Accept": "application/vnd.github.v3+json",
+	};
+	
+	// Add GitHub token if available for GitHub API calls
+	if (process.env.GITHUB_TOKEN) {
+		headers["Authorization"] = `token ${process.env.GITHUB_TOKEN}`;
+	}
+	
+	const response = await fetch(url, { headers });
 	if (!response.ok) {
 		throw new Error(`Failed to fetch n8n version from ${url}: ${response.status} ${response.statusText}`);
 	}
@@ -62,14 +80,14 @@ async function updateReadme(pbVersion: string, n8nVersion: string, packageName: 
   const titleRegex = /^#\s+(.+)$/m;
   const titleMatch = content.match(titleRegex);
   if (titleMatch && titleMatch[1] !== packageName) {
-		console.log(`README.md: title (# ${titleMatch[1]} -> # ${packageName})`);
+	console.log(`README.md: title (# ${titleMatch[1]} -> # ${packageName})`);
     content = content.replace(titleRegex, `# ${packageName}`);
-		updated = true;
+	updated = true;
   }
 
   // Replace "This was developed for version X of n8n and version Y of PocketBase."
   const regex =
-    /This was developed for version ([\d.]+) of n8n and version ([\d.]+) of PocketBase\./;
+    /This was developed for version ([\d.]+) of n8n and version ([\d.]+) of PocketBase./;
   const replacement = `This was developed for version ${n8nVersion} of n8n and version ${pbVersion} of PocketBase.`;
 
 	const match = content.match(regex);
@@ -84,7 +102,7 @@ async function updateReadme(pbVersion: string, n8nVersion: string, packageName: 
 	}
 
 	if (updated && !dryRun) {
-  	writeFileSync(readmePath, content);
+   writeFileSync(readmePath, content);
 	}
 	return updated;
 }
@@ -121,7 +139,7 @@ async function updateDockerCompose(pbVersion: string, n8nVersion: string, packag
 	}
 
 	// Update symlink path in entrypoint: .../node_modules/old-name
-	const symlinkRegex = /(ln -sf \/home\/node\/custom-nodes \/home\/node\/\.n8n\/nodes\/node_modules\/)([^\s&]+)/;
+	const symlinkRegex = /(ln -sf \/home\/node\/custom-nodes \/home\/node\/.n8n\/nodes\/node_modules\/)\s*([^\s&]+)/;
 	const symlinkMatch = content.match(symlinkRegex);
 	if (symlinkMatch && symlinkMatch[2] !== packageName) {
 		console.log(`docker-compose.test.yml: symlink path (.../node_modules/${symlinkMatch[2]} -> .../node_modules/${packageName})`);
@@ -171,7 +189,7 @@ async function updateNodeJson(packageName: string, dryRun: boolean) {
 	}
 
 	// Update URLs in documentation
-	const urlRegex = /https:\/\/github\.com\/([^/]+)\/([^/#\s"]+)(#[^\s"]*)?/g;
+	const urlRegex = /https:\/\/github\.com\/(.*?)(\/write.)\/([^/#\s"]+)(#[^\s"]*)?/g;
 	const originalContent = JSON.stringify(nodeJson, null, 2);
 	const updatedContent = originalContent.replace(urlRegex, (match, org, repo, anchor) => {
 		if (repo !== packageName && (repo === "n8n-nodes-pocketbase" || repo.startsWith("n8n-nodes-"))) {
@@ -205,7 +223,7 @@ async function main() {
     console.log(`Latest PocketBase: ${pbVersion}`);
     console.log(`Latest n8n: ${n8nVersion}`);
 
-		const { packageName, updated: packageUpdated } = await updatePackageJson(pbVersion, n8nVersion, isCheck);
+	const { packageName, updated: packageUpdated } = await updatePackageJson(pbVersion, n8nVersion, isCheck);
     const readmeUpdated = await updateReadme(pbVersion, n8nVersion, packageName, isCheck);
     const dockerUpdated = await updateDockerCompose(pbVersion, n8nVersion, packageName, isCheck);
     const testUpdated = await updateIntegrationTest(packageName, isCheck);
