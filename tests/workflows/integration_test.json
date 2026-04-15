@@ -1,0 +1,180 @@
+{
+  "id": "1",
+  "name": "Pocketbase Integration Test Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "When clicking ‘Test workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "users",
+        "operation": "create",
+        "bodyType": [
+          "fields"
+        ],
+        "fields": {
+          "assignments": [
+            {
+              "name": "username",
+              "value": "=testuser{{$now.toMillis()}}"
+            },
+            {
+              "name": "email",
+              "value": "=user{{$now.toMillis()}}@example.com"
+            },
+            {
+              "name": "password",
+              "value": "password123"
+            },
+            {
+              "name": "passwordConfirm",
+              "value": "password123"
+            }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Pocketbase Create",
+      "type": "n8n-nodes-pocketbase.pocketbaseHttp",
+      "typeVersion": 1,
+      "position": [
+        300,
+        100
+      ],
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "users",
+        "operation": "update",
+        "elementId": "={{$node[\"Pocketbase Create\"].json[\"id\"]}}",
+        "bodyType": [
+          "fields"
+        ],
+        "fields": {
+          "assignments": [
+            {
+              "name": "name",
+              "value": "Updated User"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "Pocketbase Update",
+      "type": "n8n-nodes-pocketbase.pocketbaseHttp",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ],
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "users",
+        "operation": "view",
+        "elementId": "={{$node[\"Pocketbase Update\"].json[\"id\"]}}"
+      },
+      "id": "4",
+      "name": "Pocketbase View",
+      "type": "n8n-nodes-pocketbase.pocketbaseHttp",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ],
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "users",
+        "operation": "search"
+      },
+      "id": "5",
+      "name": "Pocketbase List",
+      "type": "n8n-nodes-pocketbase.pocketbaseHttp",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ],
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Pocketbase Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pocketbase Create": {
+      "main": [
+        [
+          {
+            "node": "Pocketbase Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pocketbase Update": {
+      "main": [
+        [
+          {
+            "node": "Pocketbase View",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pocketbase View": {
+      "main": [
+        [
+          {
+            "node": "Pocketbase List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pocketbase List": {
+      "main": [
+        []
+      ]
+    }
+  }
+}

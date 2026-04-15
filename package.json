@@ -2,11 +2,12 @@
   "name": "n8n-nodes-pocketbase",
   "version": "1.1.1",
   "description": "Interact with your PocketBase instance",
-  "license": "MIT",
-  "homepage": "",
+  "pocketbaseVersion": "0.36.9",
   "keywords": [
     "n8n-community-node-package"
   ],
+  "homepage": "https://github.com/TheFehr/n8n-nodes-pocketbase#readme",
+  "license": "MIT",
   "author": {
     "name": "Philipp Fehr",
     "email": "philipp@thefehr.ch"
@@ -15,18 +16,39 @@
     "type": "git",
     "url": "git+https://github.com/TheFehr/n8n-nodes-pocketbase.git"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "n8n-node build",
     "build:watch": "tsc --watch",
     "dev": "n8n-node dev",
-    "lint": "n8n-node lint",
-    "lint:fix": "n8n-node lint --fix",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:pipeline": "bash scripts/full-test.sh",
+    "version:update": "tsx scripts/update-versions.ts",
+    "version:check": "tsx scripts/update-versions.ts --check",
     "release": "n8n-node release",
     "prepublishOnly": "n8n-node prerelease"
   },
-  "files": [
-    "dist"
-  ],
+  "devDependencies": {
+    "@n8n/node-cli": "^0.19.0",
+    "eslint-plugin-n8n-nodes-base": "^1.16.6",
+    "oxfmt": "^0.45.0",
+    "oxlint": "^1.60.0",
+    "release-it": "^19.0.4",
+    "tsx": "^4.21.0",
+    "typescript": "5.9.2",
+    "vite": "^8.0.8",
+    "vitest": "^4.1.4"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "^2.15.1"
+  },
   "n8n": {
     "n8nNodesApiVersion": 1,
     "strict": true,
@@ -36,15 +58,5 @@
     "nodes": [
       "dist/nodes/PocketbaseHttp/PocketbaseHttp.node.js"
     ]
-  },
-  "devDependencies": {
-    "@n8n/node-cli": "*",
-    "eslint": "9.32.0",
-    "prettier": "3.6.2",
-    "release-it": "^19.0.4",
-    "typescript": "5.9.2"
-  },
-  "peerDependencies": {
-    "n8n-workflow": "*"
   }
 }

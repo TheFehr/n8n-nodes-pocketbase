@@ -1,25 +1,25 @@
-import { ILoadOptionsFunctions, INodePropertyOptions } from 'n8n-workflow';
+import { ILoadOptionsFunctions, INodePropertyOptions } from "n8n-workflow";
 
 export interface PocketBaseField {
-	autogeneratePattern?: string;
-	hidden: boolean;
-	id: string;
-	max?: number | string;
-	min?: number | string;
-	name: string;
-	pattern?: string;
-	presentable: boolean;
-	primaryKey?: boolean;
-	required?: boolean;
-	system: boolean;
-	type: string;
-	maxSelect?: number;
-	values?: string[];
-	onCreate?: boolean;
-	onUpdate?: boolean;
-	cascadeDelete?: boolean;
-	collectionId?: string;
-	minSelect?: number;
+  autogeneratePattern?: string;
+  hidden: boolean;
+  id: string;
+  max?: number | string;
+  min?: number | string;
+  name: string;
+  pattern?: string;
+  presentable: boolean;
+  primaryKey?: boolean;
+  required?: boolean;
+  system: boolean;
+  type: string;
+  maxSelect?: number;
+  values?: string[];
+  onCreate?: boolean;
+  onUpdate?: boolean;
+  cascadeDelete?: boolean;
+  collectionId?: string;
+  minSelect?: number;
 }
 
 async function loadPocketBaseFields(
@@ -27,91 +27,99 @@ async function loadPocketBaseFields(
 	collectionName: string | null = null,
 ): Promise<PocketBaseField[]> {
 	const { url } = await this.getCredentials('pocketbaseHttpApi');
+	const normalizedUrl = (url as string).replace(/\/$/, '');
 	const resource = collectionName
 		? collectionName
 		: (this.getNodeParameter('resource') as unknown as string);
-	const { fields } = await this.helpers.httpRequestWithAuthentication.call(this, 'pocketbaseHttpApi', {
-		url: `${url}/api/collections/${resource}`,
-		method: 'GET',
-	});
+	const { fields } = await this.helpers.httpRequestWithAuthentication.call(
+		this,
+		'pocketbaseHttpApi',
+		{
+			url: `${normalizedUrl}/api/collections/${resource}`,
+			method: 'GET',
+		},
+	);
 
-	return fields as PocketBaseField[];
+  return fields as PocketBaseField[];
 }
 
 export const LoadOptions = {
-	async getCollections(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+  async getCollections(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 		const { url } = await this.getCredentials('pocketbaseHttpApi');
+		const normalizedUrl = (url as string).replace(/\/$/, '');
 
-		const items: {name: string}[] = [];
+		const items: { name: string }[] = [];
 		let page: number = 1;
 		let totalPages: number = 1;
 
 		do {
-			const { items: pageItems, totalPages: pageTotalPages } = await this.helpers.httpRequestWithAuthentication.call(
-				this,
-				'pocketbaseHttpApi',
-				{
-					url: `${url}/api/collections`,
+			const { items: pageItems, totalPages: pageTotalPages } =
+				await this.helpers.httpRequestWithAuthentication.call(this, 'pocketbaseHttpApi', {
+					url: `${normalizedUrl}/api/collections`,
 					method: 'GET',
 					qs: { page },
-				},
-			);
-
-			items.push(...pageItems);
-			if (totalPages === 1) {
-				totalPages = pageTotalPages;
-			}
-			page++;
-		} while (page <= totalPages);
-
-		return items.map(({ name }) => ({ name, value: name })) as INodePropertyOptions[];
-	},
-	async getFields(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-		const returnData: INodePropertyOptions[] = [];
-		const fields = await loadPocketBaseFields.call(this);
-
-		fields?.forEach(({ name, type }) => {
-			if (type === 'relation') {
-				returnData.push({
-					name: `All fields from relation '${name}'`,
-					value: `expand.${name}.*`
 				});
 
-				return;
-			}
+      items.push(...pageItems);
+      if (totalPages === 1) {
+        totalPages = pageTotalPages;
+      }
+      page++;
+    } while (page <= totalPages);
 
-			returnData.push({
-				name,
-				value: name,
-			});
-		});
+    return items.map(({ name }) => ({ name, value: name })) as INodePropertyOptions[];
+  },
+  async getFields(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+    const returnData: INodePropertyOptions[] = [];
+    const fields = await loadPocketBaseFields.call(this);
 
-		return returnData;
-	},
-	async getRelations(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-		const returnData: INodePropertyOptions[] = [];
-		const fields = await loadPocketBaseFields.call(this);
+    fields?.forEach(({ name, type }) => {
+      if (type === "relation") {
+        returnData.push({
+          name: `All fields from relation '${name}'`,
+          value: `expand.${name}.*`,
+        });
 
-		fields?.forEach(({ name, type }) => {
-			if (type !== 'relation') {
-				return;
-			}
-			returnData.push({
-				name,
-				value: name,
-			});
-		});
+        return;
+      }
 
-		return returnData;
-	},
-	async getRows(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+      returnData.push({
+        name,
+        value: name,
+      });
+    });
+
+    return returnData;
+  },
+  async getRelations(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+    const returnData: INodePropertyOptions[] = [];
+    const fields = await loadPocketBaseFields.call(this);
+
+    fields?.forEach(({ name, type }) => {
+      if (type !== "relation") {
+        return;
+      }
+      returnData.push({
+        name,
+        value: name,
+      });
+    });
+
+    return returnData;
+  },
+  async getRows(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 		const returnData: INodePropertyOptions[] = [];
 		const { url } = await this.getCredentials('pocketbaseHttpApi');
+		const normalizedUrl = (url as string).replace(/\/$/, '');
 		const resource = this.getNodeParameter('resource') as unknown as string;
-		const { items } = await this.helpers.httpRequestWithAuthentication.call(this, 'pocketbaseHttpApi', {
-			url: `${url}/api/collections/${resource}/records?sort=-created`,
-			method: 'GET',
-		});
+		const { items } = await this.helpers.httpRequestWithAuthentication.call(
+			this,
+			'pocketbaseHttpApi',
+			{
+				url: `${normalizedUrl}/api/collections/${resource}/records?sort=-created`,
+				method: 'GET',
+			},
+		);
 
 		items?.forEach(({ id, ...data }: { id: string }) => {
 			const name = Object.entries(data).filter(([key]) => {
@@ -124,8 +132,11 @@ export const LoadOptions = {
 				}),
 			);
 
+			const fallback = JSON.stringify(shortColumns).substring(1, 100);
+			const label = name || (fallback && fallback !== '}' ? fallback : id);
+
 			returnData.push({
-				name: name ? name : JSON.stringify(shortColumns).substring(1, 100),
+				name: label,
 				value: id,
 			});
 		});
