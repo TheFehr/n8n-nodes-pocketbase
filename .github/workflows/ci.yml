@@ -25,4 +25,6 @@ jobs:
         run: "npm run lint"
 
       - name: Run integration tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "npm run test:pipeline"
