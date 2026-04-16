@@ -42,7 +42,7 @@ jobs:
       - name: Create Pull Request
         if: steps.check_updates.outputs.updates_found == 'true'
         id: cpr
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: update compatibility versions in README.md"
@@ -50,6 +50,8 @@ jobs:
           body: "Automated nightly updates for compatibility versions."
           branch: nightly-updates
           base: main
+          delete-branch: true
+          sign-commits: true
 
       - name: Enable Auto-Merge
         if: steps.cpr.outputs.pull-request-operation == 'created'
