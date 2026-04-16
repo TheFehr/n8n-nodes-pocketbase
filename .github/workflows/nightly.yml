@@ -14,9 +14,17 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Generate Token
+        id: generate_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Use Node.js
         uses: actions/setup-node@v6
@@ -42,17 +50,19 @@ jobs:
       - name: Create Pull Request
         if: steps.check_updates.outputs.updates_found == 'true'
         id: cpr
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
           commit-message: "chore: update compatibility versions in README.md"
           title: "Nightly Compatibility Updates"
           body: "Automated nightly updates for compatibility versions."
           branch: nightly-updates
           base: main
+          delete-branch: true
+          sign-commits: true
 
       - name: Enable Auto-Merge
         if: steps.cpr.outputs.pull-request-operation == 'created'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
         run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-number }}"
