@@ -10,7 +10,7 @@ services:
       - --dev
 
   n8n:
-    image: n8nio/n8n:2.15.1
+    image: n8nio/n8n:2.16.1
     ports:
       - "5678:5678"
     environment:
