@@ -5,8 +5,8 @@ import {
   recordUpdatePreSendAction,
   recordViewPostReceiveAction,
   recordViewPreSendAction,
-} from "./GenericFunctions";
-import { LoadOptions } from "./LoadOptions";
+} from "../Common/GenericFunctions";
+import { LoadOptions } from "../Common/LoadOptions";
 
 export class PocketbaseHttp implements INodeType {
   description: INodeTypeDescription = {
