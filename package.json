@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@n8n/node-cli": "^0.23.0",
+    "@types/eventsource": "^1.1.15",
     "eslint-plugin-n8n-nodes-base": "^1.16.6",
     "oxfmt": "^0.45.0",
     "oxlint": "^1.60.0",
@@ -55,8 +56,12 @@
       "dist/credentials/PocketbaseHttpApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/PocketbaseHttp/PocketbaseHttp.node.js"
+      "dist/nodes/PocketbaseHttp/PocketbaseHttp.node.js",
+      "dist/nodes/PocketbaseTrigger/PocketbaseTrigger.node.js"
     ]
   },
-  "pocketbaseVersion": "0.36.9"
+  "pocketbaseVersion": "0.36.9",
+  "dependencies": {
+    "eventsource": "^4.1.0"
+  }
 }
