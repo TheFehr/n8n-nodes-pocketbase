@@ -1,0 +1,47 @@
+{
+  "id": "2",
+  "name": "Pocketbase Trigger Integration Test Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "collection": "users",
+        "events": [
+          "create"
+        ]
+      },
+      "id": "10",
+      "name": "Pocketbase Trigger",
+      "type": "n8n-nodes-pocketbase.pocketbaseTrigger",
+      "typeVersion": 1,
+      "position": [100, 100],
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "11",
+      "name": "Wait",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [300, 100]
+    }
+  ],
+  "connections": {
+    "Pocketbase Trigger": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
