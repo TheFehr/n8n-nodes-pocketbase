@@ -70,12 +70,6 @@ docker compose -f docker-compose.test.yml run --rm \
 echo "Verifying results in PocketBase logs..."
 PB_LOGS=$(docker compose -f docker-compose.test.yml logs pocketbase)
 
-# With --dev, PocketBase prints successful requests and SQL statements to stdout/stderr.
-# We look for the creation of a user and its subsequent update, using specific values from the workflow.
-# 1. Check for POST request to records endpoint
-# 2. Check for SQL INSERT statement containing our test email
-# 3. Check for PATCH request to a specific record
-# 4. Check for SQL UPDATE statement containing our updated name
 if echo "$PB_LOGS" | grep -qE "POST /api/collections/users/records" && \
    echo "$PB_LOGS" | grep -iq "INSERT INTO .*users.*user[0-9]*@example.com" && \
    echo "$PB_LOGS" | grep -qE "PATCH /api/collections/users/records/" && \
@@ -83,17 +77,12 @@ if echo "$PB_LOGS" | grep -qE "POST /api/collections/users/records" && \
   echo "✅ Verification successful: Specific CRUD patterns and data found in PocketBase logs!"
 else
   echo "❌ Verification failed: Expected CRUD patterns or data NOT found in logs."
-  echo "Check if the following patterns are present in PB logs:"
-  echo "- POST /api/collections/users/records"
-  echo "- INSERT INTO ... users ... user[0-9]*@example.com"
-  echo "- PATCH /api/collections/users/records/..."
-  echo "- UPDATE ... users ... Updated User"
   echo "Execution output summary:"
   tail -n 10 workflow_output.txt
   exit 1
 fi
 
-# Run existing unit tests
+# Run unit and integration tests
 export POCKETBASE_TEST_URL="http://localhost:8090"
 export POCKETBASE_TEST_USER="test@example.com"
 export POCKETBASE_TEST_PASS="password123"

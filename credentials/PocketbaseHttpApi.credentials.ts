@@ -7,7 +7,7 @@ import {
   IHttpRequestHelper,
   INodeProperties,
 } from "n8n-workflow";
-import { login, refresh } from "../nodes/PocketbaseHttp/PocketbaseAuth";
+import { login, refresh } from "../nodes/Common/PocketbaseAuth";
 
 export class PocketbaseHttpApi implements ICredentialType {
   name = "pocketbaseHttpApi";

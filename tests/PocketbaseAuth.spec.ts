@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { login } from "../nodes/PocketbaseHttp/PocketbaseAuth";
+import { login } from "../nodes/Common/PocketbaseAuth";
 import type { IHttpRequestHelper, ICredentialDataDecryptedObject } from "n8n-workflow";
 
 describe("PocketbaseAuth", () => {
