@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { IHttpRequestHelper, ICredentialDataDecryptedObject } from "n8n-workflow";
 
 interface Credentials {
@@ -30,11 +31,17 @@ export const inFlightRequests = new Map<string, Promise<{ token: string }>>();
 
 /**
  * Generates a unique key for the given credentials to deduplicate requests.
- * Includes URL, username, and password to ensure security and consistency.
+ * Uses a SHA-256 hash of a canonical JSON representation to avoid storing raw passwords in keys.
  */
 function getCredentialFingerprint(credentials: Credentials): string {
   const normalizedUrl = (credentials.url || "").replace(/\/$/, "");
-  return `${normalizedUrl}#${credentials.username || ""}#${credentials.password || ""}`;
+  const canonical = JSON.stringify({
+    url: normalizedUrl,
+    username: credentials.username || "",
+    password: credentials.password || "",
+  });
+
+  return createHash("sha256").update(canonical).digest("hex");
 }
 
 /**

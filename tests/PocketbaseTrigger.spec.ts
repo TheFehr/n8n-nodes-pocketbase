@@ -25,6 +25,10 @@ describe("PocketbaseTrigger", () => {
         returnJsonArray: vi.fn((data: any) => [{ json: data }]),
       },
       emit: vi.fn(),
+      emitError: vi.fn(),
+      logger: {
+        error: vi.fn(),
+      },
     };
     esInstance = {
       addEventListener: vi.fn(),
@@ -127,5 +131,62 @@ describe("PocketbaseTrigger", () => {
     await response.closeFunction!();
 
     expect(esInstance.close).toHaveBeenCalled();
+  });
+
+  it("should handle EventSource connection failure", async () => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      return undefined;
+    });
+
+    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+
+    const errorCallback = esInstance.addEventListener.mock.calls.find(
+      (call: any) => call[0] === "error",
+    )[1];
+
+    const mockError = new Error("Connection failed");
+    errorCallback(mockError);
+
+    expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
+      "PocketBase SSE connection failure",
+      expect.objectContaining({ error: mockError, baseUrl: "http://localhost:8090" }),
+    );
+    expect(triggerFunctions.emitError).toHaveBeenCalledWith(mockError);
+    expect(esInstance.close).toHaveBeenCalled();
+  });
+
+  it("should redact sensitive data on parse failure", async () => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      return undefined;
+    });
+
+    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+
+    const collectionCallback = esInstance.addEventListener.mock.calls.find(
+      (call: any) => call[0] === "posts",
+    )[1];
+
+    // Invalid JSON with sensitive data
+    const invalidData = '{ "action": "create", "password": "secret", "token": "xyz", "invalid": ';
+    collectionCallback({ data: invalidData });
+
+    expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
+      "Failed to parse PocketBase SSE message",
+      expect.objectContaining({
+        redactedPreview: expect.stringContaining('"password": "[REDACTED]"'),
+        collection: "posts",
+      }),
+    );
+    expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
+      "Failed to parse PocketBase SSE message",
+      expect.objectContaining({
+        redactedPreview: expect.stringContaining('"token": "[REDACTED]"'),
+        collection: "posts",
+      }),
+    );
   });
 });

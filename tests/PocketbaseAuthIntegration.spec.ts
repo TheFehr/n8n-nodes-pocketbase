@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { login, refresh, inFlightRequests } from "../nodes/Common/PocketbaseAuth";
 import type { IHttpRequestHelper, ICredentialDataDecryptedObject } from "n8n-workflow";
 
@@ -121,11 +121,29 @@ describe("PocketbaseAuth Integration", () => {
     } finally {
       // 7. Revert password back for other tests if needed
       if (record && record.id) {
+        let cleanupToken = finalResultToken;
+
+        if (!cleanupToken) {
+          try {
+            const authRes = await fetch(`${baseUrl}/api/collections/_superusers/auth-with-password`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ identity: email, password: newPassword }),
+            });
+            if (authRes.ok) {
+              const data = (await authRes.json()) as any;
+              cleanupToken = data.token;
+            }
+          } catch (e) {
+            // Authentication failed, will fallback to initialToken
+          }
+        }
+
         await fetch(`${baseUrl}/api/collections/_superusers/records/${record.id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            Authorization: finalResultToken || initialToken,
+            Authorization: cleanupToken || initialToken,
           },
           body: JSON.stringify({
             password: oldPassword,

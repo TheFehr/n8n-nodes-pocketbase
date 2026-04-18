@@ -103,6 +103,15 @@ function subscribeToPocketbaseSSE(
 ): { closeFunction: () => Promise<void> } {
   const es = new EventSource(`${baseUrl}/api/realtime`);
 
+  es.addEventListener("error", (error: any) => {
+    this.logger.error("PocketBase SSE connection failure", {
+      error,
+      baseUrl,
+    });
+    this.emitError(error);
+    es.close();
+  });
+
   es.addEventListener("PB_CONNECT", async (e: any) => {
     try {
       const data = JSON.parse(e.data as string);
@@ -130,9 +139,14 @@ function subscribeToPocketbaseSSE(
         this.emit([this.helpers.returnJsonArray(data.record)]);
       }
     } catch (error) {
+      const rawData = e.data as string;
+      const redactedPreview = rawData.substring(0, 200).replace(
+        /"(password|token|secret|email|passwordConfirm)":\s*"(?:[^"\\]|\\.)*"/gi,
+        '"$1": "[REDACTED]"'
+      );
       this.logger.error("Failed to parse PocketBase SSE message", {
         error,
-        data: e.data,
+        redactedPreview,
         collection,
       });
     }
