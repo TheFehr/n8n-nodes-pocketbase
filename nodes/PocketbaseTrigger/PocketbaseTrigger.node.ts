@@ -89,7 +89,7 @@ export class PocketbaseTrigger implements INodeType {
 						subscriptions: [collection],
 					},
 				});
-			} catch (error) {
+			} catch {
 				es.close();
 			}
 		});
@@ -100,7 +100,7 @@ export class PocketbaseTrigger implements INodeType {
 				if (events.includes(data.action)) {
 					this.emit([this.helpers.returnJsonArray(data.record)]);
 				}
-			} catch (error) {
+			} catch {
 				// Ignore parse errors or other issues with specific messages
 			}
 		});

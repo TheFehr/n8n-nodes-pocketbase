@@ -6,6 +6,20 @@ interface Credentials {
   password: string;
 }
 
+function isTokenExpired(token: string): boolean {
+  if (!token) return true;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return true;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(Buffer.from(base64, "base64").toString("utf-8")) as { exp: number };
+    // Refresh if it's going to expire in less than 5 minutes
+    return Date.now() / 1000 > payload.exp - 300;
+  } catch {
+    return true;
+  }
+}
+
 export async function login(
   this: IHttpRequestHelper,
   credentials: ICredentialDataDecryptedObject,
@@ -44,6 +58,11 @@ export async function refresh(
   credentials: ICredentialDataDecryptedObject,
 ): Promise<{ token: string }> {
   const { url, token: existingToken } = credentials as unknown as Credentials & { token: string };
+
+  if (!isTokenExpired(existingToken)) {
+    return { token: existingToken };
+  }
+
   const normalizedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
 
   try {

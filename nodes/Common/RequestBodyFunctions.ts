@@ -27,7 +27,8 @@ export async function prepareRequestBody(
   if (bodyType.includes("bodyJson")) {
     if (typeof requestOptions.body === "object" && requestOptions.body !== null) {
       Object.entries(requestOptions.body).forEach(([key, value]) => {
-        formData.append(key, value);
+        const val = typeof value === "object" && value !== null ? JSON.stringify(value) : value;
+        formData.append(key, val);
       });
     } else if (requestOptions.body !== undefined) {
       formData.append("body", requestOptions.body);

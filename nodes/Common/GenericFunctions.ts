@@ -47,15 +47,25 @@ export async function pagination(
   let totalPages: number = page + 1;
   requestOptions.options.qs ??= {};
 
+  const returnFullResponse = !!requestOptions.options.returnFullResponse;
+
   do {
     requestOptions.options.qs.page = page;
     const responseData = await this.makeRoutingRequest(requestOptions);
-    page = responseData[0].json.page as number;
+    const responseBody = (
+      returnFullResponse ? (responseData[0].json.body as IDataObject) : responseData[0].json
+    ) as IDataObject;
+
+    if (!responseBody || typeof responseBody !== "object") {
+      throw new Error("Invalid response from PocketBase");
+    }
+
+    page = (responseBody.page as number) || page;
     if (allIsActive) {
-      totalPages = responseData[0].json.totalPages as number;
+      totalPages = (responseBody.totalPages as number) || page;
     }
     executions = executions.concat(
-      (responseData[0].json.items as IDataObject[]).map((item) => ({ json: item })),
+      ((responseBody.items as IDataObject[]) || []).map((item) => ({ json: item })),
     );
     page++;
   } while (page <= totalPages);
