@@ -71,7 +71,7 @@ export async function refresh(
 
   const canReauthenticate = !!(username && password);
 
-  if (!canReauthenticate && !isTokenExpired(existingToken)) {
+  if (!isTokenExpired(existingToken)) {
     return { token: existingToken };
   }
 

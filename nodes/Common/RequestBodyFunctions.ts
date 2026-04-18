@@ -2,6 +2,7 @@
 import FormData from "form-data";
 import {
   AssignmentCollectionValue,
+  IDataObject,
   IExecuteSingleFunctions,
   IHttpRequestOptions,
 } from "n8n-workflow";
@@ -25,13 +26,15 @@ export async function prepareRequestBody(
   }
 
   if (bodyType.includes("bodyJson")) {
-    if (typeof requestOptions.body === "object" && requestOptions.body !== null) {
-      Object.entries(requestOptions.body).forEach(([key, value]) => {
+    const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | IDataObject;
+    try {
+      const body = typeof bodyJson === "string" ? (JSON.parse(bodyJson) as IDataObject) : bodyJson;
+      Object.entries(body).forEach(([key, value]) => {
         const val = typeof value === "object" && value !== null ? JSON.stringify(value) : value;
         formData.append(key, val);
       });
-    } else if (requestOptions.body !== undefined) {
-      formData.append("body", requestOptions.body);
+    } catch (e) {
+      throw new Error(`Invalid JSON in JSON Body parameter: ${e.message}`);
     }
   }
 
