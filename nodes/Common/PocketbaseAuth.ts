@@ -25,6 +25,41 @@ function isTokenExpired(token: string): boolean {
   }
 }
 
+// Memory cache for in-flight authentication requests to prevent race conditions
+export const inFlightRequests = new Map<string, Promise<{ token: string }>>();
+
+/**
+ * Generates a unique key for the given credentials to deduplicate requests.
+ * Includes URL, username, and password to ensure security and consistency.
+ */
+function getCredentialFingerprint(credentials: Credentials): string {
+  const normalizedUrl = (credentials.url || "").replace(/\/$/, "");
+  return `${normalizedUrl}#${credentials.username || ""}#${credentials.password || ""}`;
+}
+
+/**
+ * Internal function to perform the actual login request.
+ * Does not include deduplication logic.
+ */
+async function executeLogin(
+  this: IHttpRequestHelper,
+  url: string,
+  creds: Credentials,
+): Promise<{ token: string }> {
+  const normalizedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
+
+  const { token } = (await this.helpers.httpRequest({
+    method: "POST",
+    url: `${normalizedUrl}/api/collections/_superusers/auth-with-password`,
+    body: {
+      identity: creds.username,
+      password: creds.password,
+    },
+  })) as { token: string };
+
+  return { token };
+}
+
 export async function login(
   this: IHttpRequestHelper,
   credentials: ICredentialDataDecryptedObject,
@@ -33,7 +68,8 @@ export async function login(
     throw new Error("Credentials must be an object");
   }
 
-  const { username, password, url } = credentials as unknown as Credentials;
+  const creds = credentials as unknown as Credentials;
+  const { username, password, url } = creds;
 
   if (typeof url !== "string" || url.trim() === "") {
     throw new Error("PocketBase URL is missing or invalid in Credentials");
@@ -45,29 +81,29 @@ export async function login(
     throw new Error("PocketBase Admin password is missing or invalid in Credentials");
   }
 
-  const normalizedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
+  const fingerprint = getCredentialFingerprint(creds);
+  const existingRequest = inFlightRequests.get(fingerprint);
 
-  const { token } = (await this.helpers.httpRequest({
-    method: "POST",
-    url: `${normalizedUrl}/api/collections/_superusers/auth-with-password`,
-    body: {
-      identity: username,
-      password,
-    },
-  })) as { token: string };
-  return { token };
+  if (existingRequest) {
+    return await existingRequest;
+  }
+
+  const loginPromise = executeLogin.call(this, url, creds);
+  inFlightRequests.set(fingerprint, loginPromise);
+
+  try {
+    return await loginPromise;
+  } finally {
+    inFlightRequests.delete(fingerprint);
+  }
 }
 
 export async function refresh(
   this: IHttpRequestHelper,
   credentials: ICredentialDataDecryptedObject,
 ): Promise<{ token: string }> {
-  const {
-    url,
-    username,
-    password,
-    token: existingToken,
-  } = credentials as unknown as Credentials & { token: string };
+  const creds = credentials as unknown as Credentials & { token: string };
+  const { url, username, password, token: existingToken } = creds;
 
   const canReauthenticate = !!(username && password);
 
@@ -75,24 +111,43 @@ export async function refresh(
     return { token: existingToken };
   }
 
-  const normalizedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
+  const fingerprint = getCredentialFingerprint(creds);
+  const existingRequest = inFlightRequests.get(fingerprint);
+
+  if (existingRequest) {
+    return await existingRequest;
+  }
+
+  const refreshPromise = (async () => {
+    const normalizedUrl = (url || "").endsWith("/") ? url.slice(0, -1) : url;
+
+    try {
+      const { token } = (await this.helpers.httpRequest({
+        method: "POST",
+        url: `${normalizedUrl}/api/collections/_superusers/auth-refresh`,
+        headers: {
+          Authorization: existingToken,
+        },
+      })) as { token: string };
+      return { token };
+    } catch (error) {
+      if (
+        canReauthenticate &&
+        (error.status === 401 || error.status === 403 || error.status === 404)
+      ) {
+        // Fallback to login if refresh fails.
+        // We use executeLogin directly to avoid deadlocking on the fingerprint lock we currently hold.
+        return await executeLogin.call(this, url, creds);
+      }
+      throw error;
+    }
+  })();
+
+  inFlightRequests.set(fingerprint, refreshPromise);
 
   try {
-    const { token } = (await this.helpers.httpRequest({
-      method: "POST",
-      url: `${normalizedUrl}/api/collections/_superusers/auth-refresh`,
-      headers: {
-        Authorization: existingToken,
-      },
-    })) as { token: string };
-    return { token };
-  } catch (error) {
-    if (
-      canReauthenticate &&
-      (error.status === 401 || error.status === 403 || error.status === 404)
-    ) {
-      return await login.call(this, credentials);
-    }
-    throw error;
+    return await refreshPromise;
+  } finally {
+    inFlightRequests.delete(fingerprint);
   }
 }

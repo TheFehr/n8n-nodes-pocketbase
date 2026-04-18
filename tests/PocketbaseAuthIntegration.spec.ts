@@ -1,8 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { refresh } from "../nodes/Common/PocketbaseAuth";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { login, refresh, inFlightRequests } from "../nodes/Common/PocketbaseAuth";
 import type { IHttpRequestHelper, ICredentialDataDecryptedObject } from "n8n-workflow";
 
 describe("PocketbaseAuth Integration", () => {
+  beforeEach(() => {
+    inFlightRequests.clear();
+  });
+
   const baseUrl = process.env.POCKETBASE_TEST_URL || "http://localhost:8090";
   const email = process.env.POCKETBASE_TEST_USER || "test@example.com";
   const oldPassword = process.env.POCKETBASE_TEST_PASS || "password123";
@@ -131,4 +135,66 @@ describe("PocketbaseAuth Integration", () => {
       }
     }
   }, 20000);
+
+  it("should deduplicate multiple concurrent login calls to the same PocketBase instance", async () => {
+    let httpRequestCount = 0;
+
+    const mockThis = {
+      helpers: {
+        httpRequest: async (options: any) => {
+          httpRequestCount++;
+          // Simulate some network latency to ensure calls overlap
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          const res = await fetch(options.url, {
+            method: options.method,
+            headers: { "Content-Type": "application/json", ...options.headers },
+            body: JSON.stringify(options.body),
+          });
+
+          const data = (await res.json()) as any;
+          if (!res.ok) {
+            const error: any = new Error(data.message || "Request failed");
+            error.status = res.status;
+            throw error;
+          }
+          return data;
+        },
+      },
+    } as unknown as IHttpRequestHelper;
+
+    const credentials = {
+      url: baseUrl,
+      username: email,
+      password: oldPassword,
+    } as unknown as ICredentialDataDecryptedObject;
+
+    // Execute 5 logins concurrently
+    const results = await Promise.all([
+      login.call(mockThis, credentials),
+      login.call(mockThis, credentials),
+      login.call(mockThis, credentials),
+      login.call(mockThis, credentials),
+      login.call(mockThis, credentials),
+    ]);
+
+    // Verify only 1 HTTP request was made
+    expect(httpRequestCount).toBe(1);
+
+    // Verify all returned a valid token
+    results.forEach((res) => {
+      expect(res.token).toBeDefined();
+      expect(typeof res.token).toBe("string");
+    });
+
+    // Verify the token actually works
+    const verifyRes = await fetch(`${baseUrl}/api/collections/_superusers/auth-refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: results[0].token,
+      },
+    });
+    expect(verifyRes.ok).toBe(true);
+  }, 10000);
 });
