@@ -5,9 +5,7 @@
     {
       "parameters": {
         "collection": "users",
-        "events": [
-          "create"
-        ]
+        "events": ["create"]
       },
       "id": "10",
       "name": "Pocketbase Trigger",

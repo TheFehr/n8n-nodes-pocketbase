@@ -60,9 +60,18 @@ export async function pagination(
       throw new Error("Invalid response from PocketBase");
     }
 
-    page = (responseBody.page as number) || page;
+    const resPage = Number(responseBody.page);
+    if (!Number.isFinite(resPage)) {
+      throw new Error("Missing or invalid page in PocketBase response");
+    }
+    page = resPage;
+
     if (allIsActive) {
-      totalPages = (responseBody.totalPages as number) || page;
+      const resTotalPages = Number(responseBody.totalPages);
+      if (!Number.isFinite(resTotalPages)) {
+        throw new Error("Missing or invalid totalPages in PocketBase response");
+      }
+      totalPages = resTotalPages;
     }
     executions = executions.concat(
       ((responseBody.items as IDataObject[]) || []).map((item) => ({ json: item })),

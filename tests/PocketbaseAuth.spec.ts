@@ -149,7 +149,8 @@ describe("PocketbaseAuth", () => {
     });
 
     it("should fall back to login if refresh fails with 401 (e.g. password changed)", async () => {
-      const mockHttpRequest = vi.fn()
+      const mockHttpRequest = vi
+        .fn()
         .mockRejectedValueOnce({ status: 401, message: "Unauthorized" })
         .mockResolvedValueOnce({ token: "fresh-token" });
 
@@ -170,7 +171,7 @@ describe("PocketbaseAuth", () => {
 
       expect(result).toEqual({ token: "fresh-token" });
       expect(mockHttpRequest).toHaveBeenCalledTimes(2);
-      
+
       // First call: attempt refresh
       expect(mockHttpRequest).toHaveBeenNthCalledWith(1, {
         method: "POST",
@@ -189,6 +190,87 @@ describe("PocketbaseAuth", () => {
           password: "new-password123",
         },
       });
+    });
+
+    it("should fall back to login if refresh fails with 403", async () => {
+      const mockHttpRequest = vi
+        .fn()
+        .mockRejectedValueOnce({ status: 403, message: "Forbidden" })
+        .mockResolvedValueOnce({ token: "fresh-token" });
+
+      const mockThis = {
+        helpers: {
+          httpRequest: mockHttpRequest,
+        },
+      } as unknown as IHttpRequestHelper;
+
+      const credentials = {
+        url: "http://localhost:8090",
+        username: "test@example.com",
+        password: "new-password123",
+        token: "invalidated-token",
+      } as unknown as ICredentialDataDecryptedObject;
+
+      const result = await refresh.call(mockThis, credentials);
+
+      expect(result).toEqual({ token: "fresh-token" });
+      expect(mockHttpRequest).toHaveBeenCalledTimes(2);
+      expect(mockHttpRequest).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          url: "http://localhost:8090/api/collections/_superusers/auth-refresh",
+        }),
+      );
+      expect(mockHttpRequest).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          url: "http://localhost:8090/api/collections/_superusers/auth-with-password",
+        }),
+      );
+    });
+
+    it("should fall back to login if refresh fails with 404", async () => {
+      const mockHttpRequest = vi
+        .fn()
+        .mockRejectedValueOnce({ status: 404, message: "Not Found" })
+        .mockResolvedValueOnce({ token: "fresh-token" });
+
+      const mockThis = {
+        helpers: {
+          httpRequest: mockHttpRequest,
+        },
+      } as unknown as IHttpRequestHelper;
+
+      const credentials = {
+        url: "http://localhost:8090",
+        username: "test@example.com",
+        password: "new-password123",
+        token: "invalidated-token",
+      } as unknown as ICredentialDataDecryptedObject;
+
+      const result = await refresh.call(mockThis, credentials);
+
+      expect(result).toEqual({ token: "fresh-token" });
+      expect(mockHttpRequest).toHaveBeenCalledTimes(2);
+    });
+
+    it("should rethrow error if it is missing status", async () => {
+      const mockHttpRequest = vi.fn().mockRejectedValue(new Error("Network Error"));
+
+      const mockThis = {
+        helpers: {
+          httpRequest: mockHttpRequest,
+        },
+      } as unknown as IHttpRequestHelper;
+
+      const credentials = {
+        url: "http://localhost:8090",
+        username: "test@example.com",
+        password: "password123",
+        token: "some-token",
+      } as unknown as ICredentialDataDecryptedObject;
+
+      await expect(refresh.call(mockThis, credentials)).rejects.toThrow("Network Error");
     });
 
     it("should throw original error if status is not 401/403/404", async () => {

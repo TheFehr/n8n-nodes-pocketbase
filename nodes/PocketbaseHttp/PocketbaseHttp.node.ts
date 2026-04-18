@@ -30,7 +30,7 @@ export class PocketbaseHttp implements INodeType {
       },
     ],
     requestDefaults: {
-      returnFullResponse: true,
+      returnFullResponse: false,
       baseURL: '={{$credentials.url.replace(new RegExp("/$"), "")}}',
       headers: {
         Accept: "application/json",

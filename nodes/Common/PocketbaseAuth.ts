@@ -13,6 +13,11 @@ function isTokenExpired(token: string): boolean {
     if (parts.length !== 3) return true;
     const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
     const payload = JSON.parse(Buffer.from(base64, "base64").toString("utf-8")) as { exp: number };
+
+    if (typeof payload.exp !== "number" || !Number.isFinite(payload.exp)) {
+      return true;
+    }
+
     // Refresh if it's going to expire in less than 5 minutes
     return Date.now() / 1000 > payload.exp - 300;
   } catch {
@@ -57,9 +62,16 @@ export async function refresh(
   this: IHttpRequestHelper,
   credentials: ICredentialDataDecryptedObject,
 ): Promise<{ token: string }> {
-  const { url, token: existingToken } = credentials as unknown as Credentials & { token: string };
+  const {
+    url,
+    username,
+    password,
+    token: existingToken,
+  } = credentials as unknown as Credentials & { token: string };
 
-  if (!isTokenExpired(existingToken)) {
+  const canReauthenticate = !!(username && password);
+
+  if (!canReauthenticate && !isTokenExpired(existingToken)) {
     return { token: existingToken };
   }
 
@@ -75,7 +87,10 @@ export async function refresh(
     })) as { token: string };
     return { token };
   } catch (error) {
-    if (error.status === 401 || error.status === 403 || error.status === 404) {
+    if (
+      canReauthenticate &&
+      (error.status === 401 || error.status === 403 || error.status === 404)
+    ) {
       return await login.call(this, credentials);
     }
     throw error;
