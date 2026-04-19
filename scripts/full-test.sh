@@ -4,6 +4,17 @@ set -e
 # EXIT trap for teardown
 on_exit() {
 	EXIT_CODE=$?
+	if [ $EXIT_CODE -ne 0 ]; then
+		echo "Integration test failed with exit code $EXIT_CODE"
+		if [ -f workflow_output.txt ]; then
+			echo "--- Workflow Execution Output ---"
+			cat workflow_output.txt
+			echo "--------------------------------"
+		fi
+		echo "--- PocketBase Logs ---"
+		docker compose -f docker-compose.test.yml logs pocketbase
+		echo "-----------------------"
+	fi
 	echo "Cleaning up..."
 	docker compose -f docker-compose.test.yml down
 	rm -f workflow_output.txt
@@ -70,15 +81,33 @@ docker compose -f docker-compose.test.yml run --rm \
 echo "Verifying results in PocketBase logs..."
 PB_LOGS=$(docker compose -f docker-compose.test.yml logs pocketbase)
 
-if echo "$PB_LOGS" | grep -qE "POST /api/collections/users/records" && \
-   echo "$PB_LOGS" | grep -iq "INSERT INTO .*users.*user[0-9]*@example.com" && \
-   echo "$PB_LOGS" | grep -qE "PATCH /api/collections/users/records/" && \
-   echo "$PB_LOGS" | grep -iq "UPDATE .*users.*Updated User"; then
+VERIFIED=true
+
+if ! echo "$PB_LOGS" | grep -qE "POST /api/collections/users/records"; then
+  echo "❌ Verification failed: 'POST /api/collections/users/records' (user create) not found in logs."
+  VERIFIED=false
+fi
+
+if ! echo "$PB_LOGS" | grep -iq "INSERT INTO .*users.*user[0-9]*@example.com"; then
+  echo "❌ Verification failed: INSERT statement for user create not found in logs."
+  VERIFIED=false
+fi
+
+if ! echo "$PB_LOGS" | grep -qE "PATCH /api/collections/users/records/"; then
+  echo "❌ Verification failed: 'PATCH /api/collections/users/records/' (user update) not found in logs."
+  VERIFIED=false
+fi
+
+if ! echo "$PB_LOGS" | grep -iq "UPDATE .*users.*Updated User"; then
+  echo "❌ Verification failed: UPDATE statement for user update not found in logs."
+  VERIFIED=false
+fi
+
+if [ "$VERIFIED" = "true" ]; then
   echo "✅ Verification successful: Specific CRUD patterns and data found in PocketBase logs!"
 else
-  echo "❌ Verification failed: Expected CRUD patterns or data NOT found in logs."
   echo "Execution output summary:"
-  tail -n 10 workflow_output.txt
+  tail -n 20 workflow_output.txt
   exit 1
 fi
 

@@ -51,7 +51,6 @@ export async function pagination(
   requestOptions.options ??= {};
   requestOptions.options.qs ??= {};
 
-  const returnFullResponse = !!requestOptions.options.returnFullResponse;
   const maxPages = 1000;
 
   do {
@@ -64,10 +63,7 @@ export async function pagination(
       // Empty response from the routing request itself (e.g. timeout or empty array)
       return executions;
     }
-    const json = responseData?.[0]?.json;
-    const responseBody = (
-      returnFullResponse ? (json?.body as IDataObject) : json
-    ) as IDataObject;
+    const responseBody = responseData?.[0]?.json as IDataObject;
 
     if (!responseBody || typeof responseBody !== "object") {
       throw new Error("Invalid response from PocketBase");
