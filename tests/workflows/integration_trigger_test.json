@@ -23,7 +23,7 @@
         "options": {}
       },
       "id": "11",
-      "name": "Wait",
+      "name": "No Op",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [300, 100]
@@ -34,7 +34,7 @@
       "main": [
         [
           {
-            "node": "Wait",
+            "node": "No Op",
             "type": "main",
             "index": 0
           }

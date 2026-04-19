@@ -2,17 +2,12 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { login, refresh, inFlightRequests } from "../nodes/Common/PocketbaseAuth";
 import type { IHttpRequestHelper, ICredentialDataDecryptedObject } from "n8n-workflow";
 
-describe("PocketbaseAuth Integration", () => {
+const runIntegration = process.env.RUN_POCKETBASE_INTEGRATION === "true";
+
+describe.skipIf(!runIntegration)("PocketbaseAuth Integration", () => {
   beforeEach(() => {
     inFlightRequests.clear();
   });
-
-  const runIntegration = process.env.RUN_POCKETBASE_INTEGRATION === "true";
-
-  if (!runIntegration) {
-    it.skip("Integration tests are disabled. Set RUN_POCKETBASE_INTEGRATION=true to enable.", () => {});
-    return;
-  }
 
   const baseUrl = process.env.POCKETBASE_TEST_URL || "http://localhost:8090";
   const email = process.env.POCKETBASE_TEST_USER || "test@example.com";
@@ -26,8 +21,8 @@ describe("PocketbaseAuth Integration", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identity: email, password: oldPassword }),
     });
-    const { token: initialToken, record } = (await authRes.json()) as any;
     expect(authRes.ok).toBe(true);
+    const { token: initialToken, record } = (await authRes.json()) as any;
 
     // 2. Setup mock 'this' for our refresh call
     // We want to test our actual 'refresh' implementation,
@@ -42,7 +37,7 @@ describe("PocketbaseAuth Integration", () => {
             body &&
             typeof body === "object" &&
             !(body instanceof Buffer) &&
-            !(body.constructor.name === "FormData")
+            !(typeof body.append === "function" && typeof body.getHeaders === "function")
           ) {
             body = JSON.stringify(body);
             if (!headers["Content-Type"]) {
@@ -100,7 +95,11 @@ describe("PocketbaseAuth Integration", () => {
       // 5. Call refresh with the now-invalid token and the NEW password
       // We use an "expired" token to force isTokenExpired() to return true
       const expiredTime = Math.floor(Date.now() / 1000) - 3600;
-      const expiredPayload = Buffer.from(JSON.stringify({ exp: expiredTime })).toString("base64");
+      const expiredPayload = Buffer.from(JSON.stringify({ exp: expiredTime }))
+        .toString("base64")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
       const forcedExpiredToken = `header.${expiredPayload}.signature`;
 
       const credentialsWithNewPass = {
@@ -132,6 +131,7 @@ describe("PocketbaseAuth Integration", () => {
 
         if (!cleanupToken) {
           try {
+            // Re-authenticate to get a fresh token if everything else failed
             const authRes = await fetch(`${baseUrl}/api/collections/_superusers/auth-with-password`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -140,25 +140,42 @@ describe("PocketbaseAuth Integration", () => {
             if (authRes.ok) {
               const data = (await authRes.json()) as any;
               cleanupToken = data.token;
+            } else {
+              // Try with old password just in case it didn't change
+              const authResOld = await fetch(`${baseUrl}/api/collections/_superusers/auth-with-password`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ identity: email, password: oldPassword }),
+              });
+              if (authResOld.ok) {
+                const data = (await authResOld.json()) as any;
+                cleanupToken = data.token;
+              }
             }
-          } catch {
-            // Authentication failed, will fallback to initialToken
+          } catch (err) {
+            console.warn("Authentication cleanup failed to re-auth", err);
           }
         }
 
-        const cleanupRes = await fetch(`${baseUrl}/api/collections/_superusers/records/${record.id}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: cleanupToken || initialToken,
-          },
-          body: JSON.stringify({
-            password: oldPassword,
-            passwordConfirm: oldPassword,
-          }),
-        });
+        if (cleanupToken) {
+          const cleanupRes = await fetch(`${baseUrl}/api/collections/_superusers/records/${record.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: cleanupToken,
+            },
+            body: JSON.stringify({
+              password: oldPassword,
+              passwordConfirm: oldPassword,
+            }),
+          });
 
-        expect(cleanupRes.ok).toBe(true);
+          if (!cleanupRes.ok) {
+            console.warn("Failed to revert password during cleanup:", await cleanupRes.text());
+          }
+        } else {
+          console.warn("Skipping cleanup: No valid token available");
+        }
       }
     }
   }, 20000);

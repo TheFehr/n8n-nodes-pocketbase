@@ -10,8 +10,8 @@ import {
 export async function prepareRequestBody(
   this: IExecuteSingleFunctions,
   requestOptions: IHttpRequestOptions,
-) {
-  const bodyType = this.getNodeParameter("bodyType", ["parameters"]) as string[];
+): Promise<IHttpRequestOptions> {
+  const bodyType = this.getNodeParameter("bodyType", ["fields"]) as string[];
 
   const formData = new FormData();
 
@@ -21,7 +21,13 @@ export async function prepareRequestBody(
         assignments: [],
       }) as AssignmentCollectionValue
     )?.assignments?.forEach(function ({ name, value }) {
-      formData.append(name, value);
+      if (!name || typeof name !== "string" || name.trim() === "") {
+        return;
+      }
+      if (value !== undefined && value !== null) {
+        const stringValue = typeof value === "object" ? JSON.stringify(value) : String(value);
+        formData.append(name, stringValue);
+      }
     });
   }
 
@@ -29,12 +35,21 @@ export async function prepareRequestBody(
     const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | IDataObject;
     try {
       const body = typeof bodyJson === "string" ? (JSON.parse(bodyJson) as IDataObject) : bodyJson;
+
+      if (typeof body !== "object" || body === null || Array.isArray(body)) {
+        throw new Error("JSON Body must be a JSON object");
+      }
+
       Object.entries(body).forEach(([key, value]) => {
-        const val = typeof value === "object" && value !== null ? JSON.stringify(value) : value;
+        if (value === undefined || value === null) {
+          return;
+        }
+        const val = typeof value === "object" ? JSON.stringify(value) : String(value);
         formData.append(key, val);
       });
     } catch (e) {
-      throw new Error(`Invalid JSON in JSON Body parameter: ${e.message}`);
+      const message = e instanceof Error ? e.message : String(e);
+      throw new Error(`Invalid JSON in JSON Body parameter: ${message}`);
     }
   }
 
@@ -48,11 +63,7 @@ export async function prepareRequestBody(
   Object.assign(requestOptions.headers, formData.getHeaders());
 
   requestOptions.body = formData;
-  const isMultipart =
-    requestOptions.body instanceof FormData ||
-    (requestOptions.headers &&
-      requestOptions.headers["content-type"]?.toString().includes("multipart"));
-  const loggedBody = isMultipart ? "[multipart body omitted]" : JSON.stringify(requestOptions.body);
+  const loggedBody = "[multipart body omitted]";
   this.logger.info(`Request URL: ${requestOptions.url} | ${loggedBody}`);
 
   return requestOptions;
@@ -62,22 +73,22 @@ async function handleBinaryData(this: IExecuteSingleFunctions, formData: FormDat
   const binaryPropertyName = this.getNodeParameter("binaryPropertyName", undefined) as string;
 
   if (!binaryPropertyName) {
-    this.logger.info("No binary data to send. Skipping...");
-    return;
+    throw new Error("Binary data selected but no property name provided. Please specify which binary property to use.");
   }
 
-  const binaryFieldName = this.getNodeParameter("binaryFieldName", undefined) as string;
+  const binaryFieldName = this.getNodeParameter("binaryFieldName", "") as string;
+  const fieldName = binaryFieldName || "file";
   this.logger.info(
     "Adding binary data to request formData from property: " +
       binaryPropertyName +
       "\nat: " +
-      binaryFieldName,
+      fieldName,
   );
 
   const binaryData = this.helpers.assertBinaryData(binaryPropertyName);
   const dataBuffer = await this.helpers.getBinaryDataBuffer(binaryPropertyName);
 
-  formData.append(binaryFieldName, dataBuffer, {
+  formData.append(fieldName, dataBuffer, {
     contentType: binaryData.mimeType,
     filename: binaryData.fileName,
   });

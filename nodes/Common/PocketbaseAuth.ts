@@ -27,6 +27,12 @@ function isTokenExpired(token: string): boolean {
 }
 
 // Memory cache for in-flight authentication requests to prevent race conditions
+/**
+ * A Map to track in-flight authentication requests to prevent redundant logins.
+ * This is exported primarily to allow test suites to inspect or clear the state.
+ * @internal
+ * @testing
+ */
 export const inFlightRequests = new Map<string, Promise<{ token: string }>>();
 
 /**
@@ -130,7 +136,7 @@ export async function refresh(
 		return await existingRequest;
 	}
 
-	const refreshPromise = (async () => {
+	const refreshFn = async () => {
 		const normalizedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
 
 		try {
@@ -143,7 +149,8 @@ export async function refresh(
 			})) as { token: string };
 			return { token };
 		} catch (error) {
-			const httpCode = Number(error.httpCode || error.status);
+			const err = error as Record<string, unknown> | null;
+			const httpCode = Number(err?.httpCode || err?.status);
 			if (httpCode === 401 || httpCode === 403 || httpCode === 404) {
 				// Fallback to login if refresh fails.
 				// We use executeLogin directly to avoid deadlocking on the fingerprint lock we currently hold.
@@ -151,7 +158,9 @@ export async function refresh(
 			}
 			throw error;
 		}
-	})();
+	};
+
+	const refreshPromise = refreshFn();
 
 	inFlightRequests.set(fingerprint, refreshPromise);
 

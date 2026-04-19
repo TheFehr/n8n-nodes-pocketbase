@@ -1,4 +1,8 @@
-import { ILoadOptionsFunctions, INodePropertyOptions } from "n8n-workflow";
+import type {
+  IDataObject,
+  ILoadOptionsFunctions,
+  INodePropertyOptions,
+} from "n8n-workflow";
 
 export interface PocketBaseField {
   autogeneratePattern?: string;
@@ -43,6 +47,27 @@ async function loadPocketBaseFields(
   return fields as PocketBaseField[];
 }
 
+/**
+ * Helper to generate a descriptive label from a record's data.
+ */
+function getRecordLabel(id: string, data: IDataObject): string {
+  const name = data.name as string | undefined;
+  if (name) return name;
+
+  // Extract a descriptive label from available columns
+  const shortColumns = Object.entries(data)
+    .filter(([key, value]) => {
+      if (key === "name" || key === "id") return false;
+      const serialized = JSON.stringify(value);
+      // Rule: Accept serialized lengths > 2 and <= 30
+      return serialized.length <= 30 && serialized.length > 2;
+    })
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
+
+  const fallback = shortColumns.join(", ").substring(0, 100);
+  return fallback || id;
+}
+
 export const LoadOptions = {
   async getCollections(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
     const { url } = await this.getCredentials("pocketbaseHttpApi");
@@ -52,6 +77,7 @@ export const LoadOptions = {
     let page: number = 1;
     let totalPages: number = 1;
 
+    const maxPages = 10;
     do {
       const { items: pageItems, totalPages: pageTotalPages } =
         await this.helpers.httpRequestWithAuthentication.call(this, "pocketbaseHttpApi", {
@@ -65,6 +91,9 @@ export const LoadOptions = {
         totalPages = pageTotalPages;
       }
       page++;
+      if (page > maxPages) {
+        break;
+      }
     } while (page <= totalPages);
 
     return items.map(({ name }) => ({ name, value: name })) as INodePropertyOptions[];
@@ -75,6 +104,10 @@ export const LoadOptions = {
 
     fields?.forEach(({ name, type }) => {
       if (type === "relation") {
+        returnData.push({
+          name,
+          value: name,
+        });
         returnData.push({
           name: `All fields from relation '${name}'`,
           value: `expand.${name}.*`,
@@ -112,31 +145,38 @@ export const LoadOptions = {
     const { url } = await this.getCredentials("pocketbaseHttpApi");
     const normalizedUrl = (url as string).replace(/\/$/, "");
     const resource = this.getNodeParameter("resource") as unknown as string;
-    const { items } = await this.helpers.httpRequestWithAuthentication.call(
-      this,
-      "pocketbaseHttpApi",
-      {
-        url: `${normalizedUrl}/api/collections/${resource}/records?sort=-created`,
-        method: "GET",
-      },
-    );
 
-    items?.forEach(({ id, ...data }: { id: string }) => {
-      const name = Object.entries(data).filter(([key]) => {
-        return key === "name";
-      })?.[0]?.[1] as string | undefined;
-      const shortColumns = Object.fromEntries(
-        Object.entries(data).filter(([, column]) => {
-          const serialized = JSON.stringify(column);
-          return serialized.length <= 20 && serialized.length > 2;
-        }),
-      );
+    const items: IDataObject[] = [];
+    let page: number = 1;
+    let totalPages: number = 1;
+    const maxPages = 5; // Load up to 5 pages for the dropdown
 
-      const fallback = JSON.stringify(shortColumns).substring(1, 100);
-      const label = name || (fallback && fallback !== "}" ? fallback : id);
+    do {
+      const { items: pageItems, totalPages: pageTotalPages } =
+        await this.helpers.httpRequestWithAuthentication.call(this, "pocketbaseHttpApi", {
+          url: `${normalizedUrl}/api/collections/${resource}/records`,
+          method: "GET",
+          qs: { sort: "-created", page, perPage: 50 },
+        });
 
+      items.push(...(pageItems as IDataObject[]));
+      totalPages = pageTotalPages;
+      page++;
+    } while (page <= totalPages && page <= maxPages);
+
+    if (items.length === 0) {
+      return [
+        {
+          name: "No records found",
+          value: "",
+        },
+      ];
+    }
+
+    items.forEach((item) => {
+      const id = item.id as string;
       returnData.push({
-        name: label,
+        name: getRecordLabel(id, item),
         value: id,
       });
     });

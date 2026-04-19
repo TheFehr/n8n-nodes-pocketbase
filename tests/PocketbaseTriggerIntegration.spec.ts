@@ -2,14 +2,9 @@ import { describe, it, expect } from "vitest";
 import { PocketbaseTrigger } from "../nodes/PocketbaseTrigger/PocketbaseTrigger.node";
 import type { ITriggerFunctions } from "n8n-workflow";
 
-describe("PocketbaseTrigger Integration", () => {
-  const runIntegration = process.env.RUN_POCKETBASE_INTEGRATION === "true";
+const runIntegration = process.env.RUN_POCKETBASE_INTEGRATION === "true";
 
-  if (!runIntegration) {
-    it.skip("Integration tests are disabled. Set RUN_POCKETBASE_INTEGRATION=true to enable.", () => {});
-    return;
-  }
-
+describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
   const baseUrl = process.env.POCKETBASE_TEST_URL || "http://localhost:8090";
   const email = process.env.POCKETBASE_TEST_USER || "test@example.com";
   const password = process.env.POCKETBASE_TEST_PASS || "password123";
@@ -21,8 +16,17 @@ describe("PocketbaseTrigger Integration", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identity: email, password }),
     });
+
+    if (!authRes.ok) {
+      throw new Error(`Auth failed: ${authRes.status} ${await authRes.text()}`);
+    }
+
     const authData = (await authRes.json()) as { token: string };
     const token = authData.token;
+
+    if (!token) {
+      throw new Error(`No token returned for user ${email}`);
+    }
 
     // 2. Setup Trigger Node
     const node = new PocketbaseTrigger();
@@ -46,13 +50,33 @@ describe("PocketbaseTrigger Integration", () => {
             },
             body: JSON.stringify(options.body),
           });
+
           if (res.status === 204) return {};
-          return res.json();
+
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Request failed: ${res.status} ${text}`);
+          }
+
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            return res.json();
+          }
+          return { body: await res.text() };
         },
         returnJsonArray: (data: any) => [{ json: data }],
       },
       emit: (data: any) => {
         triggeredData = data;
+      },
+      logger: {
+        error: console.error,
+        info: console.log,
+        debug: console.debug,
+        warn: console.warn,
+      },
+      emitError: (err: any) => {
+        console.error("Trigger emitted error:", err);
       },
     };
 
@@ -97,16 +121,21 @@ describe("PocketbaseTrigger Integration", () => {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
-      expect(triggeredData).toBeDefined();
+      expect(triggeredData, "Timeout waiting for Pocketbase trigger: triggeredData not set after 20s").toBeDefined();
+      expect(triggeredData).toHaveLength(1);
+      expect(triggeredData[0]).toHaveLength(1);
       expect(triggeredData[0][0].json.email).toBe(uniqueEmail);
     } finally {
       if (createdRecordId) {
-        await fetch(`${baseUrl}/api/collections/users/records/${createdRecordId}`, {
+        const deleteRes = await fetch(`${baseUrl}/api/collections/users/records/${createdRecordId}`, {
           method: "DELETE",
           headers: {
             Authorization: token,
           },
         });
+        if (!deleteRes.ok) {
+          console.warn(`Failed to cleanup test record ${createdRecordId}: ${deleteRes.status}`);
+        }
       }
       if (closeFunction) await closeFunction();
     }

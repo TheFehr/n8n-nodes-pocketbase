@@ -32,6 +32,7 @@ describe("PocketbaseTrigger", () => {
     };
     esInstance = {
       addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
       close: vi.fn(),
     };
     // Use a regular function to support 'new'
@@ -182,16 +183,12 @@ describe("PocketbaseTrigger", () => {
     expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
       "Failed to parse PocketBase SSE message",
       expect.objectContaining({
-        redactedPreview: expect.stringContaining('"password": "[REDACTED]"'),
         collection: "posts",
       }),
     );
-    expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
-      "Failed to parse PocketBase SSE message",
-      expect.objectContaining({
-        redactedPreview: expect.stringContaining('"token": "[REDACTED]"'),
-        collection: "posts",
-      }),
-    );
+
+    const loggedMeta = triggerFunctions.logger.error.mock.calls[0][1];
+    expect(loggedMeta.redactedPreview).toContain('"password": "[REDACTED]"');
+    expect(loggedMeta.redactedPreview).toContain('"token": "[REDACTED]"');
   });
 });

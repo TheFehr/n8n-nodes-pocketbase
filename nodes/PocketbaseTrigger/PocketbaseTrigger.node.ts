@@ -101,24 +101,15 @@ function subscribeToPocketbaseSSE(
   collection: string,
   events: string[],
 ): { closeFunction: () => Promise<void> } {
-  const es = new EventSource(`${baseUrl}/api/realtime`);
+  let es: EventSource | null = null;
+  let isClosed = false;
+  let isReconnecting = false;
+  let reconnectTimeout: NodeJS.Timeout | null = null;
+  let reconnectAttempts = 0;
+  const MAX_RECONNECT_ATTEMPTS = 50;
+  let consecutiveFailures = 0;
 
-  es.addEventListener("error", (error: any) => {
-    this.logger.error("PocketBase SSE connection failure", {
-      error,
-      baseUrl,
-    });
-
-    const normalizedError = new Error(error.message || "PocketBase SSE connection failure");
-    if (error.code) (normalizedError as any).code = error.code;
-    if (error.status) (normalizedError as any).status = error.status;
-    (normalizedError as any).originalErrorEvent = error;
-
-    this.emitError(normalizedError);
-    es.close();
-  });
-
-  es.addEventListener("PB_CONNECT", async (e: any) => {
+  const onConnect = async (e: any) => {
     try {
       const data = JSON.parse(e.data as string);
       const clientId = data.clientId;
@@ -131,24 +122,53 @@ function subscribeToPocketbaseSSE(
           subscriptions: [collection],
         },
       });
+      // Reset counters only after successful subscription
+      reconnectAttempts = 0;
+      consecutiveFailures = 0;
     } catch (error) {
       this.logger.error("Failed to connect to PocketBase SSE", { error, collection });
-      this.emitError(error);
-      es.close();
-    }
-  });
+      const normalizedError =
+        error instanceof Error ? error : new Error(String(error || "Unknown error during connect"));
 
-  es.addEventListener(collection, (e: any) => {
+      // Only emit on the first consecutive failure to avoid flooding.
+      if (consecutiveFailures === 0) {
+        this.emitError(normalizedError);
+      }
+      consecutiveFailures++;
+      reconnect();
+    }
+  };
+
+  const onError = (error: any) => {
+    this.logger.error("PocketBase SSE connection failure", {
+      error,
+      baseUrl,
+    });
+
+    const normalizedError = new Error((error && error.message) || "PocketBase SSE connection failure");
+    if (error && error.code) (normalizedError as any).code = error.code;
+    if (error && error.status) (normalizedError as any).status = error.status;
+    (normalizedError as any).originalErrorEvent = error;
+
+    // Only emit error on the first failure. Subsequent reconnect attempts will not flood the error stream.
+    if (consecutiveFailures === 0) {
+      this.emitError(normalizedError);
+    }
+    consecutiveFailures++;
+    reconnect();
+  };
+
+  const onMessage = (e: any) => {
     try {
       const data = JSON.parse(e.data as string);
-      if (events.includes(data.action)) {
+      if (events.includes(data.action) && data.record) {
         this.emit([this.helpers.returnJsonArray(data.record)]);
       }
     } catch (error) {
       const rawData = e.data as string;
       const redactedPreview = rawData
         .replace(
-          /"(password|token|secret|email|passwordConfirm)":\s*"(?:[^"\\]|\\.)*"/gi,
+          /"(password|token|secret|passwordConfirm|apiKey|accessToken|authorization|bearer)":\s*"(?:[^"\\]|\\.)*"/gi,
           '"$1": "[REDACTED]"',
         )
         .substring(0, 200);
@@ -158,11 +178,63 @@ function subscribeToPocketbaseSSE(
         collection,
       });
     }
-  });
+  };
+
+  const connect = () => {
+    if (isClosed) return;
+    isReconnecting = false;
+
+    es = new EventSource(`${baseUrl}/api/realtime`);
+
+    es.addEventListener("PB_CONNECT", onConnect);
+    es.addEventListener("error", onError);
+    es.addEventListener(collection, onMessage);
+  };
+
+  const reconnect = () => {
+    if (isClosed || isReconnecting) return;
+    isReconnecting = true;
+
+    if (es) {
+      es.removeEventListener("PB_CONNECT", onConnect);
+      es.removeEventListener("error", onError);
+      es.removeEventListener(collection, onMessage);
+      es.close();
+      es = null;
+    }
+
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      this.logger.error("Maximum reconnection attempts reached", { baseUrl, collection });
+      this.emitError(
+        new Error(
+          `PocketBase SSE: Maximum reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached`,
+        ),
+      );
+      isClosed = true;
+      isReconnecting = false;
+      return;
+    }
+
+    const baseDelay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+    const jitter = Math.random() * 1000; // Add 0-1000ms jitter
+    const delay = baseDelay + jitter;
+    reconnectAttempts++;
+
+    reconnectTimeout = setTimeout(connect, delay);
+  };
+
+  connect();
 
   return {
     closeFunction: async () => {
-      es.close();
+      isClosed = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (es) {
+        es.removeEventListener("PB_CONNECT", onConnect);
+        es.removeEventListener("error", onError);
+        es.removeEventListener(collection, onMessage);
+        es.close();
+      }
     },
   };
 }
