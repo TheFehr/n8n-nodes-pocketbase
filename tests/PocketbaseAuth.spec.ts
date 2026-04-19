@@ -76,6 +76,30 @@ describe("PocketbaseAuth", () => {
       );
     });
 
+    it("should throw error if username is missing", async () => {
+      const mockThis = {} as unknown as IHttpRequestHelper;
+      const credentials = {
+        url: "http://localhost:8090",
+        password: "password123",
+      } as unknown as ICredentialDataDecryptedObject;
+
+      await expect(login.call(mockThis, credentials)).rejects.toThrow(
+        "PocketBase Admin username is missing or invalid in Credentials",
+      );
+    });
+
+    it("should throw error if password is missing", async () => {
+      const mockThis = {} as unknown as IHttpRequestHelper;
+      const credentials = {
+        url: "http://localhost:8090",
+        username: "test@example.com",
+      } as unknown as ICredentialDataDecryptedObject;
+
+      await expect(login.call(mockThis, credentials)).rejects.toThrow(
+        "PocketBase Admin password is missing or invalid in Credentials",
+      );
+    });
+
     it("should handle auth failure", async () => {
       const mockHttpRequest = vi.fn().mockRejectedValue({ status: 401, message: "Unauthorized" });
 
@@ -112,6 +136,8 @@ describe("PocketbaseAuth", () => {
 
       const credentials = {
         url: "http://localhost:8090",
+        username: "test@example.com",
+        password: "password123",
         token: expiredToken,
       } as unknown as ICredentialDataDecryptedObject;
 
@@ -143,6 +169,8 @@ describe("PocketbaseAuth", () => {
 
       const credentials = {
         url: "http://localhost:8090",
+        username: "test@example.com",
+        password: "password123",
         token: validToken,
       } as unknown as ICredentialDataDecryptedObject;
 
@@ -258,6 +286,19 @@ describe("PocketbaseAuth", () => {
       expect(mockHttpRequest).toHaveBeenCalledTimes(2);
     });
 
+    it("should throw error if credentials are invalid (via shared validation)", async () => {
+      const mockThis = {} as unknown as IHttpRequestHelper;
+      const credentials = {
+        url: "http://localhost:8090",
+        // missing username and password
+        token: "some-token",
+      } as unknown as ICredentialDataDecryptedObject;
+
+      await expect(refresh.call(mockThis, credentials)).rejects.toThrow(
+        "PocketBase Admin username is missing or invalid in Credentials",
+      );
+    });
+
     it("should rethrow error if it is missing status", async () => {
       const mockHttpRequest = vi.fn().mockRejectedValue(new Error("Network Error"));
 
@@ -286,9 +327,16 @@ describe("PocketbaseAuth", () => {
         },
       } as unknown as IHttpRequestHelper;
 
+      // Mock an expired token
+      const expiredTime = Math.floor(Date.now() / 1000) - 60;
+      const payload = Buffer.from(JSON.stringify({ exp: expiredTime })).toString("base64");
+      const expiredToken = `header.${payload}.signature`;
+
       const credentials = {
         url: "http://localhost:8090",
-        token: "old-token",
+        username: "test@example.com",
+        password: "password123",
+        token: expiredToken,
       } as unknown as ICredentialDataDecryptedObject;
 
       await expect(refresh.call(mockThis, credentials)).rejects.toMatchObject({ status: 500 });

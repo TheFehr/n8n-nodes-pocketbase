@@ -67,92 +67,97 @@ async function executeLogin(
   return { token };
 }
 
+function validateCredentials(credentials: ICredentialDataDecryptedObject): Credentials {
+	if (typeof credentials !== "object" || credentials === null) {
+		throw new Error("Credentials must be an object");
+	}
+
+	const creds = credentials as unknown as Credentials;
+	const { username, password, url } = creds;
+
+	if (typeof url !== "string" || url.trim() === "") {
+		throw new Error("PocketBase URL is missing or invalid in Credentials");
+	}
+	if (typeof username !== "string" || username.trim() === "") {
+		throw new Error("PocketBase Admin username is missing or invalid in Credentials");
+	}
+	if (typeof password !== "string" || password.trim() === "") {
+		throw new Error("PocketBase Admin password is missing or invalid in Credentials");
+	}
+
+	return creds;
+}
+
 export async function login(
-  this: IHttpRequestHelper,
-  credentials: ICredentialDataDecryptedObject,
+	this: IHttpRequestHelper,
+	credentials: ICredentialDataDecryptedObject,
 ): Promise<{ token: string }> {
-  if (typeof credentials !== "object" || credentials === null) {
-    throw new Error("Credentials must be an object");
-  }
+	const creds = validateCredentials(credentials);
+	const { url } = creds;
 
-  const creds = credentials as unknown as Credentials;
-  const { username, password, url } = creds;
+	const fingerprint = getCredentialFingerprint(creds);
+	const existingRequest = inFlightRequests.get(fingerprint);
 
-  if (typeof url !== "string" || url.trim() === "") {
-    throw new Error("PocketBase URL is missing or invalid in Credentials");
-  }
-  if (typeof username !== "string" || username.trim() === "") {
-    throw new Error("PocketBase Admin username is missing or invalid in Credentials");
-  }
-  if (typeof password !== "string" || password.trim() === "") {
-    throw new Error("PocketBase Admin password is missing or invalid in Credentials");
-  }
+	if (existingRequest) {
+		return await existingRequest;
+	}
 
-  const fingerprint = getCredentialFingerprint(creds);
-  const existingRequest = inFlightRequests.get(fingerprint);
+	const loginPromise = executeLogin.call(this, url, creds);
+	inFlightRequests.set(fingerprint, loginPromise);
 
-  if (existingRequest) {
-    return await existingRequest;
-  }
-
-  const loginPromise = executeLogin.call(this, url, creds);
-  inFlightRequests.set(fingerprint, loginPromise);
-
-  try {
-    return await loginPromise;
-  } finally {
-    inFlightRequests.delete(fingerprint);
-  }
+	try {
+		return await loginPromise;
+	} finally {
+		inFlightRequests.delete(fingerprint);
+	}
 }
 
 export async function refresh(
-  this: IHttpRequestHelper,
-  credentials: ICredentialDataDecryptedObject,
+	this: IHttpRequestHelper,
+	credentials: ICredentialDataDecryptedObject,
 ): Promise<{ token: string }> {
-  const creds = credentials as unknown as Credentials & { token: string };
-  const { url, username, password, token: existingToken } = creds;
+	const creds = validateCredentials(credentials);
+	const { url, token: existingToken } = credentials as unknown as Credentials & { token: string };
 
-  const canReauthenticate = !!(username && password);
+	if (!isTokenExpired(existingToken)) {
+		return { token: existingToken };
+	}
 
-  if (!isTokenExpired(existingToken)) {
-    return { token: existingToken };
-  }
+	const fingerprint = getCredentialFingerprint(creds);
+	const existingRequest = inFlightRequests.get(fingerprint);
 
-  const fingerprint = getCredentialFingerprint(creds);
-  const existingRequest = inFlightRequests.get(fingerprint);
+	if (existingRequest) {
+		return await existingRequest;
+	}
 
-  if (existingRequest) {
-    return await existingRequest;
-  }
+	const refreshPromise = (async () => {
+		const normalizedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
 
-  const refreshPromise = (async () => {
-    const normalizedUrl = (url || "").endsWith("/") ? url.slice(0, -1) : url;
+		try {
+			const { token } = (await this.helpers.httpRequest({
+				method: "POST",
+				url: `${normalizedUrl}/api/collections/_superusers/auth-refresh`,
+				headers: {
+					Authorization: existingToken,
+				},
+			})) as { token: string };
+			return { token };
+		} catch (error) {
+			const httpCode = Number(error.httpCode || error.status);
+			if (httpCode === 401 || httpCode === 403 || httpCode === 404) {
+				// Fallback to login if refresh fails.
+				// We use executeLogin directly to avoid deadlocking on the fingerprint lock we currently hold.
+				return await executeLogin.call(this, url, creds);
+			}
+			throw error;
+		}
+	})();
 
-    try {
-      const { token } = (await this.helpers.httpRequest({
-        method: "POST",
-        url: `${normalizedUrl}/api/collections/_superusers/auth-refresh`,
-        headers: {
-          Authorization: existingToken,
-        },
-      })) as { token: string };
-      return { token };
-    } catch (error) {
-      const httpCode = Number(error.httpCode || error.status);
-      if (canReauthenticate && (httpCode === 401 || httpCode === 403 || httpCode === 404)) {
-        // Fallback to login if refresh fails.
-        // We use executeLogin directly to avoid deadlocking on the fingerprint lock we currently hold.
-        return await executeLogin.call(this, url, creds);
-      }
-      throw error;
-    }
-  })();
+	inFlightRequests.set(fingerprint, refreshPromise);
 
-  inFlightRequests.set(fingerprint, refreshPromise);
-
-  try {
-    return await refreshPromise;
-  } finally {
-    inFlightRequests.delete(fingerprint);
-  }
+	try {
+		return await refreshPromise;
+	} finally {
+		inFlightRequests.delete(fingerprint);
+	}
 }

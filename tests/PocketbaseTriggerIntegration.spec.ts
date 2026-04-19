@@ -60,6 +60,8 @@ describe("PocketbaseTrigger Integration", () => {
       triggerFunctions as unknown as ITriggerFunctions,
     );
 
+    let createdRecordId: string | undefined;
+
     try {
       // Give it a moment to connect and handshake
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -86,6 +88,9 @@ describe("PocketbaseTrigger Integration", () => {
         throw new Error(`Failed to create record: ${error}`);
       }
 
+      const createData = (await createRes.json()) as { id: string };
+      createdRecordId = createData.id;
+
       // 4. Wait for the trigger to catch the event
       for (let i = 0; i < 40; i++) {
         if (triggeredData) break;
@@ -95,6 +100,14 @@ describe("PocketbaseTrigger Integration", () => {
       expect(triggeredData).toBeDefined();
       expect(triggeredData[0][0].json.email).toBe(uniqueEmail);
     } finally {
+      if (createdRecordId) {
+        await fetch(`${baseUrl}/api/collections/users/records/${createdRecordId}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+          },
+        });
+      }
       if (closeFunction) await closeFunction();
     }
   }, 30000); // 30s timeout
