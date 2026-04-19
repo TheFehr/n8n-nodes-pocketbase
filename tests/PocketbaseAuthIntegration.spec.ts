@@ -7,6 +7,13 @@ describe("PocketbaseAuth Integration", () => {
     inFlightRequests.clear();
   });
 
+  const runIntegration = process.env.RUN_POCKETBASE_INTEGRATION === "true";
+
+  if (!runIntegration) {
+    it.skip("Integration tests are disabled. Set RUN_POCKETBASE_INTEGRATION=true to enable.", () => {});
+    return;
+  }
+
   const baseUrl = process.env.POCKETBASE_TEST_URL || "http://localhost:8090";
   const email = process.env.POCKETBASE_TEST_USER || "test@example.com";
   const oldPassword = process.env.POCKETBASE_TEST_PASS || "password123";
@@ -134,12 +141,12 @@ describe("PocketbaseAuth Integration", () => {
               const data = (await authRes.json()) as any;
               cleanupToken = data.token;
             }
-          } catch (e) {
+          } catch {
             // Authentication failed, will fallback to initialToken
           }
         }
 
-        await fetch(`${baseUrl}/api/collections/_superusers/records/${record.id}`, {
+        const cleanupRes = await fetch(`${baseUrl}/api/collections/_superusers/records/${record.id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -150,6 +157,8 @@ describe("PocketbaseAuth Integration", () => {
             passwordConfirm: oldPassword,
           }),
         });
+
+        expect(cleanupRes.ok).toBe(true);
       }
     }
   }, 20000);

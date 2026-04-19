@@ -3,6 +3,13 @@ import { PocketbaseTrigger } from "../nodes/PocketbaseTrigger/PocketbaseTrigger.
 import type { ITriggerFunctions } from "n8n-workflow";
 
 describe("PocketbaseTrigger Integration", () => {
+  const runIntegration = process.env.RUN_POCKETBASE_INTEGRATION === "true";
+
+  if (!runIntegration) {
+    it.skip("Integration tests are disabled. Set RUN_POCKETBASE_INTEGRATION=true to enable.", () => {});
+    return;
+  }
+
   const baseUrl = process.env.POCKETBASE_TEST_URL || "http://localhost:8090";
   const email = process.env.POCKETBASE_TEST_USER || "test@example.com";
   const password = process.env.POCKETBASE_TEST_PASS || "password123";

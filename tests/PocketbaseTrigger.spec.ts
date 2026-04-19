@@ -153,7 +153,12 @@ describe("PocketbaseTrigger", () => {
       "PocketBase SSE connection failure",
       expect.objectContaining({ error: mockError, baseUrl: "http://localhost:8090" }),
     );
-    expect(triggerFunctions.emitError).toHaveBeenCalledWith(mockError);
+    expect(triggerFunctions.emitError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Connection failed",
+        originalErrorEvent: mockError,
+      }),
+    );
     expect(esInstance.close).toHaveBeenCalled();
   });
 

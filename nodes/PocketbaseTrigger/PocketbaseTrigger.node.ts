@@ -108,7 +108,13 @@ function subscribeToPocketbaseSSE(
       error,
       baseUrl,
     });
-    this.emitError(error);
+
+    const normalizedError = new Error(error.message || "PocketBase SSE connection failure");
+    if (error.code) (normalizedError as any).code = error.code;
+    if (error.status) (normalizedError as any).status = error.status;
+    (normalizedError as any).originalErrorEvent = error;
+
+    this.emitError(normalizedError);
     es.close();
   });
 
@@ -140,10 +146,12 @@ function subscribeToPocketbaseSSE(
       }
     } catch (error) {
       const rawData = e.data as string;
-      const redactedPreview = rawData.substring(0, 200).replace(
-        /"(password|token|secret|email|passwordConfirm)":\s*"(?:[^"\\]|\\.)*"/gi,
-        '"$1": "[REDACTED]"'
-      );
+      const redactedPreview = rawData
+        .replace(
+          /"(password|token|secret|email|passwordConfirm)":\s*"(?:[^"\\]|\\.)*"/gi,
+          '"$1": "[REDACTED]"',
+        )
+        .substring(0, 200);
       this.logger.error("Failed to parse PocketBase SSE message", {
         error,
         redactedPreview,

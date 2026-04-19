@@ -138,10 +138,8 @@ export async function refresh(
       })) as { token: string };
       return { token };
     } catch (error) {
-      if (
-        canReauthenticate &&
-        (error.status === 401 || error.status === 403 || error.status === 404)
-      ) {
+      const httpCode = Number(error.httpCode || error.status);
+      if (canReauthenticate && (httpCode === 401 || httpCode === 403 || httpCode === 404)) {
         // Fallback to login if refresh fails.
         // We use executeLogin directly to avoid deadlocking on the fingerprint lock we currently hold.
         return await executeLogin.call(this, url, creds);

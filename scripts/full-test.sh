@@ -83,6 +83,7 @@ else
 fi
 
 # Run unit and integration tests
+export RUN_POCKETBASE_INTEGRATION="true"
 export POCKETBASE_TEST_URL="http://localhost:8090"
 export POCKETBASE_TEST_USER="test@example.com"
 export POCKETBASE_TEST_PASS="password123"
