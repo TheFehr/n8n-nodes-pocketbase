@@ -58,7 +58,7 @@ function getRecordLabel(id: string, data: IDataObject): string {
   const shortColumns = Object.entries(data)
     .filter(([key, value]) => {
       if (key === "name" || key === "id") return false;
-      const serialized = JSON.stringify(value);
+      const serialized = JSON.stringify(value) ?? "";
       // Rule: Accept serialized lengths > 2 and <= 30
       return serialized.length <= 30 && serialized.length > 2;
     })

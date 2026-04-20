@@ -135,13 +135,14 @@ describe("PocketbaseTrigger", () => {
   });
 
   it("should handle EventSource connection failure", async () => {
+    vi.useFakeTimers();
     triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
       if (name === "collection") return "posts";
       if (name === "events") return ["create"];
       return undefined;
     });
 
-    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+    const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
     const errorCallback = esInstance.addEventListener.mock.calls.find(
       (call: any) => call[0] === "error",
@@ -161,6 +162,9 @@ describe("PocketbaseTrigger", () => {
       }),
     );
     expect(esInstance.close).toHaveBeenCalled();
+
+    await response.closeFunction!();
+    vi.useRealTimers();
   });
 
   it("should redact sensitive data on parse failure", async () => {

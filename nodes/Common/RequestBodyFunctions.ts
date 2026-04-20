@@ -29,12 +29,7 @@ export async function prepareRequestBody(
 
     if (bodyType.includes("bodyJson")) {
       const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | IDataObject;
-      const parsedBody = typeof bodyJson === "string" ? (JSON.parse(bodyJson) as IDataObject) : bodyJson;
-
-      if (typeof parsedBody !== "object" || parsedBody === null || Array.isArray(parsedBody)) {
-        throw new Error("JSON Body must be a JSON object");
-      }
-
+      const parsedBody = parseBodyJson(bodyJson);
       Object.assign(body, parsedBody);
     }
 
@@ -58,8 +53,8 @@ export async function prepareRequestBody(
 
   if (bodyType.includes("bodyJson")) {
     const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | IDataObject;
-    const body = typeof bodyJson === "string" ? (JSON.parse(bodyJson) as IDataObject) : bodyJson;
-    Object.entries(body).forEach(([key, value]) => {
+    const parsedBody = parseBodyJson(bodyJson);
+    Object.entries(parsedBody).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         const val = typeof value === "object" ? JSON.stringify(value) : String(value);
         formData.append(key, val);
@@ -100,4 +95,23 @@ async function handleBinaryData(this: IExecuteSingleFunctions, formData: FormDat
     contentType: binaryData.mimeType,
     filename: binaryData.fileName,
   });
+}
+
+function parseBodyJson(bodyJson: string | IDataObject): IDataObject {
+  let parsed: any;
+  if (typeof bodyJson === "string") {
+    try {
+      parsed = JSON.parse(bodyJson);
+    } catch (error) {
+      throw new Error(`Invalid JSON in Body: ${error.message}`);
+    }
+  } else {
+    parsed = bodyJson;
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error("JSON Body must be a JSON object");
+  }
+
+  return parsed as IDataObject;
 }

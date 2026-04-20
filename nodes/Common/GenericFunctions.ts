@@ -54,7 +54,7 @@ export async function pagination(
   const maxPages = 1000;
 
   do {
-    if (page > maxPages) {
+    if (allIsActive && page > maxPages) {
       throw new Error(`Pagination exceeded maximum of ${maxPages} pages`);
     }
     requestOptions.options.qs.page = page;
@@ -96,11 +96,27 @@ export async function pagination(
       this.logger.debug(`Fetching page ${page} of ${totalPages}`);
     }
 
-    const items = Array.isArray(responseBody.items) ? (responseBody.items as IDataObject[]) : [];
+    if (!Array.isArray(responseBody.items)) {
+      throw new Error(
+        `PocketBase response for page ${page} (of ${totalPages}) did not contain an items array`,
+      );
+    }
+
+    const items = responseBody.items as IDataObject[];
     executions.push(...items.map((item) => ({ json: item })));
 
     if (items.length === 0) {
-      break;
+      if (page < totalPages) {
+        this.logger.warn(
+          `PocketBase returned 0 items for page ${page} even though totalPages is ${totalPages}`,
+          {
+            page,
+            totalPages,
+          },
+        );
+      } else {
+        break;
+      }
     }
 
     page++;
