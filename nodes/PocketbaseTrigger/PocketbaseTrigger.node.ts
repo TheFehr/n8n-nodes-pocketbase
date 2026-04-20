@@ -10,12 +10,12 @@ import { LoadOptions } from "../Common/LoadOptions";
 
 export class PocketbaseTrigger implements INodeType {
   description: INodeTypeDescription = {
-    displayName: "Pocketbase Trigger",
+    displayName: "Pocketbase (Beta) Trigger",
     name: "pocketbaseTrigger",
     icon: { light: "file:pocketbaseTrigger.svg", dark: "file:pocketbaseTrigger.dark.svg" },
     group: ["trigger"],
     version: 1,
-    description: "Handle Pocketbase events via SSE",
+    description: "Handle Pocketbase events via SSE (Beta)",
     defaults: {
       name: "Pocketbase Trigger",
     },
