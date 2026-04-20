@@ -12,60 +12,68 @@ export async function prepareRequestBody(
   requestOptions: IHttpRequestOptions,
 ): Promise<IHttpRequestOptions> {
   const bodyType = this.getNodeParameter("bodyType", ["fields"]) as string[];
+  const hasBinary = bodyType.includes("binaryData");
 
+  if (!hasBinary) {
+    // Standard JSON approach
+    const body: IDataObject = {};
+
+    if (bodyType.includes("fields")) {
+      const fields = this.getNodeParameter("fields", { assignments: [] }) as AssignmentCollectionValue;
+      fields?.assignments?.forEach(({ name, value }) => {
+        if (name && typeof name === "string" && name.trim() !== "" && value !== undefined && value !== null) {
+          body[name] = value;
+        }
+      });
+    }
+
+    if (bodyType.includes("bodyJson")) {
+      const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | IDataObject;
+      const parsedBody = typeof bodyJson === "string" ? (JSON.parse(bodyJson) as IDataObject) : bodyJson;
+
+      if (typeof parsedBody !== "object" || parsedBody === null || Array.isArray(parsedBody)) {
+        throw new Error("JSON Body must be a JSON object");
+      }
+
+      Object.assign(body, parsedBody);
+    }
+
+    requestOptions.body = body;
+    this.logger.info(`Request URL: ${requestOptions.url} | [JSON body]`);
+    return requestOptions;
+  }
+
+  // Multipart/form-data approach (required for binary/files)
   const formData = new FormData();
 
   if (bodyType.includes("fields")) {
-    (
-      this.getNodeParameter("fields", {
-        assignments: [],
-      }) as AssignmentCollectionValue
-    )?.assignments?.forEach(function ({ name, value }) {
-      if (!name || typeof name !== "string" || name.trim() === "") {
-        return;
-      }
-      if (value !== undefined && value !== null) {
-        const stringValue = typeof value === "object" ? JSON.stringify(value) : String(value);
-        formData.append(name, stringValue);
-      }
-    });
+    (this.getNodeParameter("fields", { assignments: [] }) as AssignmentCollectionValue)
+      ?.assignments?.forEach(({ name, value }) => {
+        if (name && typeof name === "string" && name.trim() !== "" && value !== undefined && value !== null) {
+          const stringValue = typeof value === "object" ? JSON.stringify(value) : String(value);
+          formData.append(name, stringValue);
+        }
+      });
   }
 
   if (bodyType.includes("bodyJson")) {
     const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | IDataObject;
-    try {
-      const body = typeof bodyJson === "string" ? (JSON.parse(bodyJson) as IDataObject) : bodyJson;
-
-      if (typeof body !== "object" || body === null || Array.isArray(body)) {
-        throw new Error("JSON Body must be a JSON object");
-      }
-
-      Object.entries(body).forEach(([key, value]) => {
-        if (value === undefined || value === null) {
-          return;
-        }
+    const body = typeof bodyJson === "string" ? (JSON.parse(bodyJson) as IDataObject) : bodyJson;
+    Object.entries(body).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
         const val = typeof value === "object" ? JSON.stringify(value) : String(value);
         formData.append(key, val);
-      });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      throw new Error(`Invalid JSON in JSON Body parameter: ${message}`);
-    }
+      }
+    });
   }
 
-  if (bodyType.includes("binaryData")) {
-    await handleBinaryData.apply(this, [formData]);
-  }
+  await handleBinaryData.apply(this, [formData]);
 
-  if (!requestOptions.headers) {
-    requestOptions.headers = {};
-  }
+  if (!requestOptions.headers) requestOptions.headers = {};
   Object.assign(requestOptions.headers, formData.getHeaders());
-
   requestOptions.body = formData;
-  const loggedBody = "[multipart body omitted]";
-  this.logger.info(`Request URL: ${requestOptions.url} | ${loggedBody}`);
 
+  this.logger.info(`Request URL: ${requestOptions.url} | [multipart body]`);
   return requestOptions;
 }
 
