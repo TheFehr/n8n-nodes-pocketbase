@@ -46,7 +46,7 @@
     "vitest": "^4.1.4"
   },
   "peerDependencies": {
-    "n8n-workflow": "^2.16.1"
+    "n8n-workflow": "^2.16.2"
   },
   "n8n": {
     "n8nNodesApiVersion": 1,
@@ -58,5 +58,5 @@
       "dist/nodes/PocketbaseHttp/PocketbaseHttp.node.js"
     ]
   },
-  "pocketbaseVersion": "0.37.1"
+  "pocketbaseVersion": "0.37.2"
 }
