@@ -48,7 +48,9 @@ describe("GenericFunctions", () => {
         },
       ]);
 
-      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {};
+      const requestOptions = {
+        options: {},
+      } as DeclarativeRestApiSettings.ResultOptions;
       const result = await pagination.call(
         mockThis as unknown as IExecutePaginationFunctions,
         requestOptions,
@@ -77,7 +79,9 @@ describe("GenericFunctions", () => {
         },
       ]);
 
-      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {};
+      const requestOptions = {
+        options: {},
+      } as DeclarativeRestApiSettings.ResultOptions;
       const result = await pagination.call(
         mockThis as unknown as IExecutePaginationFunctions,
         requestOptions,
@@ -109,7 +113,9 @@ describe("GenericFunctions", () => {
         },
       ]);
 
-      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {};
+      const requestOptions = {
+        options: {},
+      } as DeclarativeRestApiSettings.ResultOptions;
       await pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions);
 
       expect(mockThis.makeRoutingRequest).toHaveBeenCalledTimes(1);
@@ -123,7 +129,9 @@ describe("GenericFunctions", () => {
         return defaultValue;
       });
 
-      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {};
+      const requestOptions = {
+        options: {},
+      } as DeclarativeRestApiSettings.ResultOptions;
       await expect(
         pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions),
       ).rejects.toThrow("Pagination exceeded maximum of 1000 pages");
