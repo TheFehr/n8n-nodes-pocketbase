@@ -80,7 +80,7 @@ export class PocketbaseTrigger implements INodeType {
       closeFunction,
       manualTriggerFunction: async () => {
         const sampleData = {
-          action: "create",
+          __action: "create",
           id: "sample-id",
           collectionId: "sample-collection-id",
           collectionName: collection,

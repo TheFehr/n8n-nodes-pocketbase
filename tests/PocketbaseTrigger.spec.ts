@@ -148,7 +148,7 @@ describe("PocketbaseTrigger", () => {
         [
           {
             json: expect.objectContaining({
-              action: "create",
+              __action: "create",
               collectionName: "posts",
             }),
           },
@@ -199,69 +199,75 @@ describe("PocketbaseTrigger", () => {
 
   it("should handle EventSource connection failure", async () => {
     vi.useFakeTimers();
-    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
-      if (name === "collection") return "posts";
-      if (name === "events") return ["create"];
-      return undefined;
-    });
+    try {
+      triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+        if (name === "collection") return "posts";
+        if (name === "events") return ["create"];
+        return undefined;
+      });
 
-    const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+      const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
-    const errorCallback = esInstance.addEventListener.mock.calls.find(
-      (call: any) => call[0] === "error",
-    )[1];
+      const errorCallback = esInstance.addEventListener.mock.calls.find(
+        (call: any) => call[0] === "error",
+      )[1];
 
-    const mockError = new Error("Connection failed");
-    errorCallback(mockError);
+      const mockError = new Error("Connection failed");
+      errorCallback(mockError);
 
-    expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
-      "PocketBase SSE connection failure",
-      expect.objectContaining({ error: mockError, baseUrl: "http://localhost:8090" }),
-    );
-    expect(triggerFunctions.emitError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: "Connection failed",
-        originalErrorEvent: mockError,
-      }),
-    );
-    expect(esInstance.close).toHaveBeenCalled();
+      expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
+        "PocketBase SSE connection failure",
+        expect.objectContaining({ error: mockError, baseUrl: "http://localhost:8090" }),
+      );
+      expect(triggerFunctions.emitError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Connection failed",
+          originalErrorEvent: mockError,
+        }),
+      );
+      expect(esInstance.close).toHaveBeenCalled();
 
-    await response.closeFunction!();
-    vi.useRealTimers();
+      await response.closeFunction!();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("should handle EventSource delivering a non-Error error event", async () => {
     vi.useFakeTimers();
-    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
-      if (name === "collection") return "posts";
-      if (name === "events") return ["create"];
-      return undefined;
-    });
+    try {
+      triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+        if (name === "collection") return "posts";
+        if (name === "events") return ["create"];
+        return undefined;
+      });
 
-    const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+      const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
-    const errorCallback = esInstance.addEventListener.mock.calls.find(
-      (call: any) => call[0] === "error",
-    )[1];
+      const errorCallback = esInstance.addEventListener.mock.calls.find(
+        (call: any) => call[0] === "error",
+      )[1];
 
-    const mockError = { message: "Conn failed", code: 500 };
-    errorCallback(mockError);
+      const mockError = { message: "Conn failed", code: 500 };
+      errorCallback(mockError);
 
-    expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
-      "PocketBase SSE connection failure",
-      expect.objectContaining({ error: mockError, baseUrl: "http://localhost:8090" }),
-    );
-    expect(triggerFunctions.emitError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: "Conn failed",
-        code: 500,
-        originalErrorEvent: mockError,
-      }),
-    );
-    expect(esInstance.close).toHaveBeenCalled();
+      expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
+        "PocketBase SSE connection failure",
+        expect.objectContaining({ error: mockError, baseUrl: "http://localhost:8090" }),
+      );
+      expect(triggerFunctions.emitError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Conn failed",
+          code: 500,
+          originalErrorEvent: mockError,
+        }),
+      );
+      expect(esInstance.close).toHaveBeenCalled();
 
-    await response.closeFunction!();
-    vi.useRealTimers();
+      await response.closeFunction!();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("should redact sensitive data on parse failure", async () => {

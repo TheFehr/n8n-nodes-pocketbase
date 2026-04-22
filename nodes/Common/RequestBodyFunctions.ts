@@ -112,7 +112,9 @@ export async function prepareRequestBody(
 }
 
 async function handleBinaryData(this: IExecuteSingleFunctions, formData: FormData) {
-  const binaryPropertyName = this.getNodeParameter("binaryPropertyName", undefined) as string;
+  const binaryPropertyName = (
+    (this.getNodeParameter("binaryPropertyName", undefined) as string) || ""
+  ).trim();
 
   if (!binaryPropertyName) {
     throw new Error(
@@ -120,7 +122,7 @@ async function handleBinaryData(this: IExecuteSingleFunctions, formData: FormDat
     );
   }
 
-  const binaryFieldName = this.getNodeParameter("binaryFieldName", "") as string;
+  const binaryFieldName = ((this.getNodeParameter("binaryFieldName", "") as string) || "").trim();
   const fieldName = binaryFieldName || "file";
   this.logger.info(
     "Adding binary data to request formData from property: " +
