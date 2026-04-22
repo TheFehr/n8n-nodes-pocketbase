@@ -114,9 +114,8 @@ export async function pagination(
             totalPages,
           },
         );
-      } else {
-        break;
       }
+      break;
     }
 
     page++;

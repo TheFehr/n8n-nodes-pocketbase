@@ -180,8 +180,9 @@ describe("PocketbaseTrigger", () => {
       (call: any) => call[0] === "posts",
     )[1];
 
-    // Invalid JSON with sensitive data
-    const invalidData = '{ "action": "create", "password": "secret", "token": "xyz", "invalid": ';
+    // Invalid JSON with sensitive data and emails
+    const invalidData =
+      '{ "action": "create", "password": "secret", "token": "xyz", "email": "test@example.com", "msg": "Send it to someone@else.com", "invalid": ';
     collectionCallback({ data: invalidData });
 
     expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
@@ -194,5 +195,7 @@ describe("PocketbaseTrigger", () => {
     const loggedMeta = triggerFunctions.logger.error.mock.calls[0][1];
     expect(loggedMeta.redactedPreview).toContain('"password": "[REDACTED]"');
     expect(loggedMeta.redactedPreview).toContain('"token": "[REDACTED]"');
+    expect(loggedMeta.redactedPreview).toContain('"email": "[REDACTED]"');
+    expect(loggedMeta.redactedPreview).toContain("Send it to [REDACTED]");
   });
 });

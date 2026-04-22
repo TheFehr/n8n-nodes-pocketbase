@@ -1,10 +1,14 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { prepareRequestBody } from "../nodes/Common/RequestBodyFunctions";
 import { IExecuteSingleFunctions, IHttpRequestOptions } from "n8n-workflow";
 import FormData from "form-data";
 
 describe("RequestBodyFunctions", () => {
   describe("prepareRequestBody", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
     it("should parse and assign bodyJson correctly in JSON mode", async () => {
       const mockThis = {
         getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
@@ -14,6 +18,7 @@ describe("RequestBodyFunctions", () => {
         }),
         logger: {
           info: vi.fn(),
+          debug: vi.fn(),
         },
       } as unknown as IExecuteSingleFunctions;
 
@@ -32,6 +37,7 @@ describe("RequestBodyFunctions", () => {
         }),
         logger: {
           info: vi.fn(),
+          debug: vi.fn(),
         },
       } as unknown as IExecuteSingleFunctions;
 
@@ -79,6 +85,7 @@ describe("RequestBodyFunctions", () => {
         }),
         logger: {
           info: vi.fn(),
+          debug: vi.fn(),
         },
         helpers: {
           assertBinaryData: vi.fn().mockReturnValue({ mimeType: "text/plain", fileName: "test.txt" }),
@@ -100,8 +107,76 @@ describe("RequestBodyFunctions", () => {
       // We can check if the headers were set
       expect(result.headers).toBeDefined();
       expect(result.headers!["content-type"]).toContain("multipart/form-data");
-      
-      appendSpy.mockRestore();
+    });
+
+    describe("fields bodyType", () => {
+      const fields = {
+        assignments: [
+          { name: "", value: "empty name" },
+          { name: "  ", value: "whitespace name" },
+          { name: 123 as any, value: "non-string name" },
+          { name: "nullValue", value: null },
+          { name: "undefinedValue", value: undefined },
+          { name: "validString", value: "hello" },
+          { name: "validObject", value: { foo: "bar" } },
+        ],
+      };
+
+      it("should filter invalid entries and keep objects as objects in JSON mode", async () => {
+        const mockThis = {
+          getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
+            if (name === "bodyType") return ["fields"];
+            if (name === "fields") return fields;
+            return defaultValue;
+          }),
+          logger: {
+            info: vi.fn(),
+            debug: vi.fn(),
+          },        } as unknown as IExecuteSingleFunctions;
+
+        const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
+        const result = await prepareRequestBody.call(mockThis, requestOptions);
+
+        expect(result.body).toEqual({
+          validString: "hello",
+          validObject: { foo: "bar" },
+        });
+      });
+
+      it("should filter invalid entries and stringify objects in Multipart mode", async () => {
+        const appendSpy = vi.spyOn(FormData.prototype, "append");
+        const mockThis = {
+          getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
+            if (name === "bodyType") return ["fields", "binaryData"];
+            if (name === "fields") return fields;
+            if (name === "binaryPropertyName") return "data";
+            if (name === "binaryFieldName") return "file";
+            return defaultValue;
+          }),
+          logger: {
+            info: vi.fn(),
+            debug: vi.fn(),
+          },          helpers: {
+            assertBinaryData: vi.fn().mockReturnValue({ mimeType: "text/plain", fileName: "test.txt" }),
+            getBinaryDataBuffer: vi.fn().mockResolvedValue(Buffer.from("hello")),
+          },
+        } as unknown as IExecuteSingleFunctions;
+
+        const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
+        const result = await prepareRequestBody.call(mockThis, requestOptions);
+
+        expect(appendSpy).toHaveBeenCalledWith("validString", "hello");
+        expect(appendSpy).toHaveBeenCalledWith("validObject", '{"foo":"bar"}');
+
+        const appendedKeys = appendSpy.mock.calls.map(call => call[0]);
+        expect(appendedKeys).not.toContain("");
+        expect(appendedKeys).not.toContain("  ");
+        expect(appendedKeys).not.toContain(123);
+        expect(appendedKeys).not.toContain("nullValue");
+        expect(appendedKeys).not.toContain("undefinedValue");
+
+        expect(result.headers!["content-type"]).toContain("multipart/form-data");
+      });
     });
   });
 });

@@ -34,7 +34,7 @@ export async function prepareRequestBody(
     }
 
     requestOptions.body = body;
-    this.logger.info(`Request URL: ${requestOptions.url} | [JSON body]`);
+    this.logger.debug(`Request URL: ${requestOptions.url} | [JSON body]`);
     return requestOptions;
   }
 
@@ -68,7 +68,7 @@ export async function prepareRequestBody(
   Object.assign(requestOptions.headers, formData.getHeaders());
   requestOptions.body = formData;
 
-  this.logger.info(`Request URL: ${requestOptions.url} | [multipart body]`);
+  this.logger.debug(`Request URL: ${requestOptions.url} | [multipart body]`);
   return requestOptions;
 }
 
@@ -98,12 +98,13 @@ async function handleBinaryData(this: IExecuteSingleFunctions, formData: FormDat
 }
 
 function parseBodyJson(bodyJson: string | IDataObject): IDataObject {
-  let parsed: any;
+  let parsed: unknown;
   if (typeof bodyJson === "string") {
     try {
       parsed = JSON.parse(bodyJson);
     } catch (error) {
-      throw new Error(`Invalid JSON in Body: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Invalid JSON in Body: ${message}`);
     }
   } else {
     parsed = bodyJson;

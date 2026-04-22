@@ -75,9 +75,8 @@ export const LoadOptions = {
 
     const items: { name: string }[] = [];
     let page: number = 1;
-    let totalPages: number = 1;
+    let totalPages: number = 0;
 
-    const maxPages = 10;
     do {
       const { items: pageItems, totalPages: pageTotalPages } =
         await this.helpers.httpRequestWithAuthentication.call(this, "pocketbaseHttpApi", {
@@ -87,13 +86,10 @@ export const LoadOptions = {
         });
 
       items.push(...pageItems);
-      if (totalPages === 1) {
+      if (page === 1) {
         totalPages = pageTotalPages;
       }
       page++;
-      if (page > maxPages) {
-        break;
-      }
     } while (page <= totalPages);
 
     return items.map(({ name }) => ({ name, value: name })) as INodePropertyOptions[];

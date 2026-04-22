@@ -171,6 +171,8 @@ function subscribeToPocketbaseSSE(
           /"(password|token|secret|passwordConfirm|apiKey|accessToken|authorization|bearer)":\s*"(?:[^"\\]|\\.)*"/gi,
           '"$1": "[REDACTED]"',
         )
+        .replace(/"email":\s*"(?:[^"\\]|\\.)*"/gi, '"email": "[REDACTED]"')
+        .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "[REDACTED]")
         .substring(0, 200);
       this.logger.error("Failed to parse PocketBase SSE message", {
         error,
