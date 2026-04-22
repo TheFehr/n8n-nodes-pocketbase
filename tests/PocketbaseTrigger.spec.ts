@@ -93,7 +93,37 @@ describe("PocketbaseTrigger", () => {
       }),
     });
 
-    expect(triggerFunctions.emit).toHaveBeenCalledWith([[{ json: { id: "1", title: "Hello" } }]]);
+    expect(triggerFunctions.emit).toHaveBeenCalledWith([
+      [{ json: { action: "create", record: { id: "1", title: "Hello" } } }],
+    ]);
+  });
+
+  it("should emit sample data on manualTriggerFunction", async () => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create", "update", "delete"];
+      return undefined;
+    });
+
+    const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+
+    if (response.manualTriggerFunction) {
+      await response.manualTriggerFunction();
+      expect(triggerFunctions.emit).toHaveBeenCalledWith([
+        [
+          {
+            json: expect.objectContaining({
+              action: "create",
+              record: expect.objectContaining({
+                collectionName: "posts",
+              }),
+            }),
+          },
+        ],
+      ]);
+    } else {
+      throw new Error("manualTriggerFunction should be defined");
+    }
   });
 
   it("should not emit data on non-matching event", async () => {

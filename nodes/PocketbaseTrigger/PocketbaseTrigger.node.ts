@@ -89,7 +89,7 @@ export class PocketbaseTrigger implements INodeType {
             updated: new Date().toISOString(),
           },
         };
-        this.emit([this.helpers.returnJsonArray(sampleData.record)]);
+        this.emit([this.helpers.returnJsonArray(sampleData)]);
       },
     };
   }
@@ -164,7 +164,7 @@ function subscribeToPocketbaseSSE(
     try {
       const data = JSON.parse(e.data as string);
       if (events.includes(data.action) && data.record) {
-        this.emit([this.helpers.returnJsonArray(data.record)]);
+        this.emit([this.helpers.returnJsonArray(data)]);
       }
     } catch (error) {
       const rawData = e.data as string;

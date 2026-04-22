@@ -27,8 +27,7 @@ export async function prepareRequestBody(
           name &&
           typeof name === "string" &&
           name.trim() !== "" &&
-          value !== undefined &&
-          value !== null
+          value !== undefined
         ) {
           body[name] = value;
         }
@@ -38,7 +37,18 @@ export async function prepareRequestBody(
     if (bodyType.includes("bodyJson")) {
       const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | IDataObject;
       const parsedBody = parseBodyJson(bodyJson);
-      Object.assign(body, parsedBody);
+      const filteredParsedBody: IDataObject = {};
+      Object.entries(parsedBody).forEach(([key, value]) => {
+        if (
+          key &&
+          typeof key === "string" &&
+          key.trim() !== "" &&
+          value !== undefined
+        ) {
+          filteredParsedBody[key] = (value !== null && typeof value === "object") ? JSON.stringify(value) : value;
+        }
+      });
+      Object.assign(body, filteredParsedBody);
     }
 
     requestOptions.body = body;
@@ -57,10 +67,9 @@ export async function prepareRequestBody(
         name &&
         typeof name === "string" &&
         name.trim() !== "" &&
-        value !== undefined &&
-        value !== null
+        value !== undefined
       ) {
-        const stringValue = typeof value === "object" ? JSON.stringify(value) : String(value);
+        const stringValue = (value === null) ? "" : (typeof value === "object" ? JSON.stringify(value) : String(value));
         formData.append(name, stringValue);
       }
     });
@@ -70,8 +79,13 @@ export async function prepareRequestBody(
     const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | IDataObject;
     const parsedBody = parseBodyJson(bodyJson);
     Object.entries(parsedBody).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        const val = typeof value === "object" ? JSON.stringify(value) : String(value);
+      if (
+        key &&
+        typeof key === "string" &&
+        key.trim() !== "" &&
+        value !== undefined
+      ) {
+        const val = (value === null) ? "" : (typeof value === "object" ? JSON.stringify(value) : String(value));
         formData.append(key, val);
       }
     });

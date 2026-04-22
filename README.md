@@ -7,11 +7,23 @@ PocketBase is an open source backend consisting of embedded database (SQLite) wi
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
 [Installation](#installation)  
+[Usage Tips](#usage-tips)  
 [Operations](#operations)  
 [Credentials](#credentials)
 [Compatibility](#compatibility)  
 [Development](#development)  
 [Resources](#resources)
+
+## Usage Tips
+
+### Clearing Fields
+To clear a field (set it to its zero-value or delete a file), you can send `null` as the value:
+- **Text/Number/Select/Relation**: Use an expression to return `null` to clear the field.
+- **JSON**: Use `null` to store a literal null value.
+- **File**: Use `null` to delete the existing file.
+
+In the **Fields** parameter, use an expression: `={{ null }}`.  
+In the **JSON Body**, use the literal `null`: `{"myField": null}`.
 
 ## Installation
 

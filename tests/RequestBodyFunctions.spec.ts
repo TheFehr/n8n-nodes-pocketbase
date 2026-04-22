@@ -28,11 +28,11 @@ describe("RequestBodyFunctions", () => {
       expect(result.body).toEqual({ a: 1 });
     });
 
-    it("should use bodyJson directly if it is an object", async () => {
+    it("should stringify nested objects and include null values in bodyJson in JSON mode", async () => {
       const mockThis = {
         getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
           if (name === "bodyType") return ["bodyJson"];
-          if (name === "bodyJson") return { b: 2 };
+          if (name === "bodyJson") return '{"a": 1, "b": {"c": 2}, "": "empty", " ": "whitespace", "nullVal": null}';
           return defaultValue;
         }),
         logger: {
@@ -44,7 +44,11 @@ describe("RequestBodyFunctions", () => {
       const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
       const result = await prepareRequestBody.call(mockThis, requestOptions);
 
-      expect(result.body).toEqual({ b: 2 });
+      expect(result.body).toEqual({
+        a: 1,
+        b: '{"c":2}',
+        nullVal: null,
+      });
     });
 
     it("should throw error for invalid JSON in bodyJson", async () => {
@@ -77,12 +81,12 @@ describe("RequestBodyFunctions", () => {
       );
     });
 
-    it("should parse and append bodyJson correctly in Multipart mode", async () => {
+    it("should parse and append bodyJson correctly in Multipart mode, converting null to empty string", async () => {
       const appendSpy = vi.spyOn(FormData.prototype, "append");
       const mockThis = {
         getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
           if (name === "bodyType") return ["bodyJson", "binaryData"];
-          if (name === "bodyJson") return '{"a": 1, "b": {"c": 2}}';
+          if (name === "bodyJson") return '{"a": 1, "b": {"c": 2}, "nullVal": null}';
           if (name === "binaryPropertyName") return "data";
           if (name === "binaryFieldName") return "file";
           return defaultValue;
@@ -104,6 +108,7 @@ describe("RequestBodyFunctions", () => {
 
       expect(appendSpy).toHaveBeenCalledWith("a", "1");
       expect(appendSpy).toHaveBeenCalledWith("b", '{"c":2}');
+      expect(appendSpy).toHaveBeenCalledWith("nullVal", "");
       expect(appendSpy).toHaveBeenCalledWith(
         "file",
         expect.any(Buffer),
@@ -113,8 +118,6 @@ describe("RequestBodyFunctions", () => {
         }),
       );
 
-      // Since it's a mock FormData if it was imported correctly, but it uses the actual form-data lib
-      // We can check if the headers were set
       expect(result.headers).toBeDefined();
       expect(result.headers!["content-type"]).toContain("multipart/form-data");
     });
@@ -132,7 +135,7 @@ describe("RequestBodyFunctions", () => {
         ],
       };
 
-      it("should filter invalid entries and keep objects as objects in JSON mode", async () => {
+      it("should filter invalid entries and include null as null in JSON mode", async () => {
         const mockThis = {
           getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
             if (name === "bodyType") return ["fields"];
@@ -149,12 +152,13 @@ describe("RequestBodyFunctions", () => {
         const result = await prepareRequestBody.call(mockThis, requestOptions);
 
         expect(result.body).toEqual({
+          nullValue: null,
           validString: "hello",
           validObject: { foo: "bar" },
         });
       });
 
-      it("should filter invalid entries and stringify objects in Multipart mode", async () => {
+      it("should filter invalid entries and convert null to empty string in Multipart mode", async () => {
         const appendSpy = vi.spyOn(FormData.prototype, "append");
         const mockThis = {
           getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
@@ -181,12 +185,12 @@ describe("RequestBodyFunctions", () => {
 
         expect(appendSpy).toHaveBeenCalledWith("validString", "hello");
         expect(appendSpy).toHaveBeenCalledWith("validObject", '{"foo":"bar"}');
+        expect(appendSpy).toHaveBeenCalledWith("nullValue", "");
 
         const appendedKeys = appendSpy.mock.calls.map((call) => call[0]);
         expect(appendedKeys).not.toContain("");
         expect(appendedKeys).not.toContain("  ");
         expect(appendedKeys).not.toContain(123);
-        expect(appendedKeys).not.toContain("nullValue");
         expect(appendedKeys).not.toContain("undefinedValue");
 
         expect(result.headers!["content-type"]).toContain("multipart/form-data");
