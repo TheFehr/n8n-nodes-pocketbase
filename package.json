@@ -31,7 +31,7 @@
     "test:pipeline": "bash scripts/full-test.sh",
     "version:update": "tsx scripts/update-versions.ts",
     "version:check": "tsx scripts/update-versions.ts --check",
-    "release": "n8n-node release",
+    "release": "release-it",
     "prepublishOnly": "n8n-node prerelease"
   },
   "dependencies": {
@@ -39,6 +39,7 @@
   },
   "devDependencies": {
     "@n8n/node-cli": "^0.28.0",
+    "@release-it/conventional-changelog": "^10.0.6",
     "eslint-plugin-n8n-nodes-base": "^1.16.6",
     "oxfmt": "^0.46.0",
     "oxlint": "^1.60.0",

@@ -1,0 +1,21 @@
+{
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "preset": "angular",
+      "infile": "CHANGELOG.md"
+    }
+  },
+  "git": {
+    "tagName": "${version}",
+    "commitMessage": "chore: release ${version}"
+  },
+  "github": {
+    "release": false
+  },
+  "hooks": {
+    "after:git:release": "gh release create ${version} --title \"Release ${version}\" --notes \"${changelog}\""
+  },
+  "npm": {
+    "publish": false
+  }
+}
