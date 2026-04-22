@@ -49,6 +49,11 @@
     "vite": "^8.0.8",
     "vitest": "^4.1.4"
   },
+  "overrides": {
+    "@release-it/conventional-changelog": {
+      "release-it": "$release-it"
+    }
+  },
   "peerDependencies": {
     "n8n-workflow": "^2.17.5"
   },
