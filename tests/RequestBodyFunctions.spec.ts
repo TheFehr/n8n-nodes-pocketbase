@@ -81,7 +81,7 @@ describe("RequestBodyFunctions", () => {
       );
     });
 
-    it("should parse and append bodyJson correctly in Multipart mode, converting null to empty string", async () => {
+    it("should parse and append bodyJson correctly in Multipart mode, converting null to 'null' string", async () => {
       const appendSpy = vi.spyOn(FormData.prototype, "append");
       const mockThis = {
         getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
@@ -108,7 +108,7 @@ describe("RequestBodyFunctions", () => {
 
       expect(appendSpy).toHaveBeenCalledWith("a", "1");
       expect(appendSpy).toHaveBeenCalledWith("b", '{"c":2}');
-      expect(appendSpy).toHaveBeenCalledWith("nullVal", "");
+      expect(appendSpy).toHaveBeenCalledWith("nullVal", "null");
       expect(appendSpy).toHaveBeenCalledWith(
         "file",
         expect.any(Buffer),
@@ -158,7 +158,7 @@ describe("RequestBodyFunctions", () => {
         });
       });
 
-      it("should filter invalid entries and convert null to empty string in Multipart mode", async () => {
+      it("should filter invalid entries and convert null to 'null' string in Multipart mode", async () => {
         const appendSpy = vi.spyOn(FormData.prototype, "append");
         const mockThis = {
           getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
@@ -185,7 +185,7 @@ describe("RequestBodyFunctions", () => {
 
         expect(appendSpy).toHaveBeenCalledWith("validString", "hello");
         expect(appendSpy).toHaveBeenCalledWith("validObject", '{"foo":"bar"}');
-        expect(appendSpy).toHaveBeenCalledWith("nullValue", "");
+        expect(appendSpy).toHaveBeenCalledWith("nullValue", "null");
 
         const appendedKeys = appendSpy.mock.calls.map((call) => call[0]);
         expect(appendedKeys).not.toContain("");

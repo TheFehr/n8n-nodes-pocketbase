@@ -49,7 +49,7 @@
     "vitest": "^4.1.4"
   },
   "peerDependencies": {
-    "n8n-workflow": "^2.16.2"
+    "n8n-workflow": "^2.17.5"
   },
   "n8n": {
     "n8nNodesApiVersion": 1,

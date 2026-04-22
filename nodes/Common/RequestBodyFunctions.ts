@@ -35,7 +35,7 @@ export async function prepareRequestBody(
     }
 
     if (bodyType.includes("bodyJson")) {
-      const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | IDataObject;
+      const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | Record<string, unknown>;
       const parsedBody = parseBodyJson(bodyJson);
       const filteredParsedBody: IDataObject = {};
       Object.entries(parsedBody).forEach(([key, value]) => {
@@ -69,14 +69,14 @@ export async function prepareRequestBody(
         name.trim() !== "" &&
         value !== undefined
       ) {
-        const stringValue = (value === null) ? "" : (typeof value === "object" ? JSON.stringify(value) : String(value));
+        const stringValue = (value === null) ? "null" : (typeof value === "object" ? JSON.stringify(value) : String(value));
         formData.append(name, stringValue);
       }
     });
   }
 
   if (bodyType.includes("bodyJson")) {
-    const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | IDataObject;
+    const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | Record<string, unknown>;
     const parsedBody = parseBodyJson(bodyJson);
     Object.entries(parsedBody).forEach(([key, value]) => {
       if (
@@ -85,7 +85,7 @@ export async function prepareRequestBody(
         key.trim() !== "" &&
         value !== undefined
       ) {
-        const val = (value === null) ? "" : (typeof value === "object" ? JSON.stringify(value) : String(value));
+        const val = (value === null) ? "null" : (typeof value === "object" ? JSON.stringify(value) : String(value));
         formData.append(key, val);
       }
     });
@@ -128,7 +128,14 @@ async function handleBinaryData(this: IExecuteSingleFunctions, formData: FormDat
   });
 }
 
-function parseBodyJson(bodyJson: string | IDataObject): IDataObject {
+function parseBodyJson(bodyJson: string | Record<string, unknown>): Record<string, unknown> {
+  if (
+    typeof bodyJson !== "string" &&
+    (typeof bodyJson !== "object" || bodyJson === null || Array.isArray(bodyJson))
+  ) {
+    throw new Error("JSON Body must be a JSON object or string");
+  }
+
   let parsed: unknown;
   if (typeof bodyJson === "string") {
     try {
@@ -145,5 +152,5 @@ function parseBodyJson(bodyJson: string | IDataObject): IDataObject {
     throw new Error("JSON Body must be a JSON object");
   }
 
-  return parsed as IDataObject;
+  return parsed as Record<string, unknown>;
 }

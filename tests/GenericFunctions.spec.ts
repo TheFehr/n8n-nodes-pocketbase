@@ -48,9 +48,11 @@ describe("GenericFunctions", () => {
         },
       ]);
 
-      const requestOptions = {
-        options: {},
-      } as DeclarativeRestApiSettings.ResultOptions;
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
       const result = await pagination.call(
         mockThis as unknown as IExecutePaginationFunctions,
         requestOptions,
@@ -79,9 +81,11 @@ describe("GenericFunctions", () => {
         },
       ]);
 
-      const requestOptions = {
-        options: {},
-      } as DeclarativeRestApiSettings.ResultOptions;
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
       const result = await pagination.call(
         mockThis as unknown as IExecutePaginationFunctions,
         requestOptions,
@@ -113,9 +117,11 @@ describe("GenericFunctions", () => {
         },
       ]);
 
-      const requestOptions = {
-        options: {},
-      } as DeclarativeRestApiSettings.ResultOptions;
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
       await pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions);
 
       expect(mockThis.makeRoutingRequest).toHaveBeenCalledTimes(1);
@@ -129,12 +135,67 @@ describe("GenericFunctions", () => {
         return defaultValue;
       });
 
-      const requestOptions = {
-        options: {},
-      } as DeclarativeRestApiSettings.ResultOptions;
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
       await expect(
         pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions),
       ).rejects.toThrow("Pagination exceeded maximum of 1000 pages");
+      expect(mockThis.makeRoutingRequest).not.toHaveBeenCalled();
+    });
+
+    it("should not throw error if page === 1000", async () => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: any) => {
+        if (name === "parameters.allElements") return true;
+        if (name === "parameters.page") return 1000;
+        return defaultValue;
+      });
+
+      mockThis.makeRoutingRequest.mockResolvedValueOnce([
+        {
+          json: {
+            page: 1000,
+            totalPages: 1000,
+            items: [{ id: 1 }],
+          },
+        },
+      ]);
+
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
+      await pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions);
+      expect(mockThis.makeRoutingRequest).toHaveBeenCalled();
+    });
+
+    it("should not apply page limit if allElements is false", async () => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: any) => {
+        if (name === "parameters.allElements") return false;
+        if (name === "parameters.page") return 2000;
+        return defaultValue;
+      });
+
+      mockThis.makeRoutingRequest.mockResolvedValueOnce([
+        {
+          json: {
+            page: 2000,
+            totalPages: 2000,
+            items: [{ id: 1 }],
+          },
+        },
+      ]);
+
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
+      await pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions);
+      expect(mockThis.makeRoutingRequest).toHaveBeenCalled();
     });
   });
 });

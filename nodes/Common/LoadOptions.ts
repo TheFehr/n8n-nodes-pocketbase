@@ -47,7 +47,7 @@ async function loadPocketBaseFields(
  * Helper to generate a descriptive label from a record's data.
  */
 function getRecordLabel(id: string, data: IDataObject): string {
-  if (data.name !== null && data.name !== undefined) {
+  if (data.name !== null && data.name !== undefined && data.name !== "") {
     return String(data.name);
   }
 
