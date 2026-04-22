@@ -45,7 +45,7 @@ export async function prepareRequestBody(
           key.trim() !== "" &&
           value !== undefined
         ) {
-          filteredParsedBody[key] = (value !== null && typeof value === "object") ? JSON.stringify(value) : value;
+          filteredParsedBody[key] = value;
         }
       });
       Object.assign(body, filteredParsedBody);
@@ -93,7 +93,17 @@ export async function prepareRequestBody(
 
   await handleBinaryData.apply(this, [formData]);
 
-  if (!requestOptions.headers) requestOptions.headers = {};
+  if (!requestOptions.headers) {
+    requestOptions.headers = {};
+  } else {
+    // Remove existing Content-Type to avoid collisions with multipart boundary
+    Object.keys(requestOptions.headers).forEach((key) => {
+      if (key.toLowerCase() === "content-type") {
+        delete requestOptions.headers![key];
+      }
+    });
+  }
+
   Object.assign(requestOptions.headers, formData.getHeaders());
   requestOptions.body = formData;
 

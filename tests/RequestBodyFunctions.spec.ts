@@ -28,7 +28,7 @@ describe("RequestBodyFunctions", () => {
       expect(result.body).toEqual({ a: 1 });
     });
 
-    it("should stringify nested objects and include null values in bodyJson in JSON mode", async () => {
+    it("should preserve nested objects and include null values in bodyJson in JSON mode", async () => {
       const mockThis = {
         getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
           if (name === "bodyType") return ["bodyJson"];
@@ -46,7 +46,7 @@ describe("RequestBodyFunctions", () => {
 
       expect(result.body).toEqual({
         a: 1,
-        b: '{"c":2}',
+        b: { c: 2 },
         nullVal: null,
       });
     });

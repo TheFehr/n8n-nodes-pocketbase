@@ -83,9 +83,7 @@ export const LoadOptions = {
         });
 
       items.push(...pageItems);
-      if (page === 1) {
-        totalPages = pageTotalPages;
-      }
+      totalPages = pageTotalPages;
       page++;
     } while (page <= totalPages);
 

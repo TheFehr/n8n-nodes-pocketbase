@@ -94,7 +94,42 @@ describe("PocketbaseTrigger", () => {
     });
 
     expect(triggerFunctions.emit).toHaveBeenCalledWith([
-      [{ json: { action: "create", id: "1", title: "Hello" } }],
+      [{ json: { __action: "create", id: "1", title: "Hello" } }],
+    ]);
+  });
+
+  it("should handle record action collisions in onMessage", async () => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      return undefined;
+    });
+
+    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+
+    const collectionCallback = esInstance.addEventListener.mock.calls.find(
+      (call: any) => call[0] === "posts",
+    )[1];
+
+    // Event with record already having an 'action' field
+    await collectionCallback({
+      data: JSON.stringify({
+        action: "create",
+        record: { id: "1", action: "original-action-value" },
+      }),
+    });
+
+    expect(triggerFunctions.emit).toHaveBeenCalledWith([
+      [
+        {
+          json: {
+            id: "1",
+            action: "original-action-value",
+            __original_action: "original-action-value",
+            __action: "create",
+          },
+        },
+      ],
     ]);
   });
 
@@ -195,6 +230,40 @@ describe("PocketbaseTrigger", () => {
     vi.useRealTimers();
   });
 
+  it("should handle EventSource delivering a non-Error error event", async () => {
+    vi.useFakeTimers();
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      return undefined;
+    });
+
+    const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+
+    const errorCallback = esInstance.addEventListener.mock.calls.find(
+      (call: any) => call[0] === "error",
+    )[1];
+
+    const mockError = { message: "Conn failed", code: 500 };
+    errorCallback(mockError);
+
+    expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
+      "PocketBase SSE connection failure",
+      expect.objectContaining({ error: mockError, baseUrl: "http://localhost:8090" }),
+    );
+    expect(triggerFunctions.emitError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Conn failed",
+        code: 500,
+        originalErrorEvent: mockError,
+      }),
+    );
+    expect(esInstance.close).toHaveBeenCalled();
+
+    await response.closeFunction!();
+    vi.useRealTimers();
+  });
+
   it("should redact sensitive data on parse failure", async () => {
     triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
       if (name === "collection") return "posts";
@@ -225,5 +294,6 @@ describe("PocketbaseTrigger", () => {
     expect(loggedMeta.redactedPreview).toContain('"token": "[REDACTED]"');
     expect(loggedMeta.redactedPreview).toContain('"email": "[REDACTED]"');
     expect(loggedMeta.redactedPreview).toContain("Send it to [REDACTED]");
+    expect(loggedMeta.redactedPreview.length).toBeLessThanOrEqual(200);
   });
 });

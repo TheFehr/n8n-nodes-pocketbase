@@ -164,12 +164,16 @@ function subscribeToPocketbaseSSE(
       if (events.includes(data.action) && data.record) {
         const output = {
           ...data.record,
-          action: data.action,
         };
+        if ("action" in output) {
+          (output as any).__original_action = output.action;
+        }
+        (output as any).__action = data.action;
+
         this.emit([this.helpers.returnJsonArray(output)]);
       }
     } catch (error) {
-      const rawData = e.data as string;
+      const rawData = String(e?.data ?? "");
       const redactedPreview = rawData
         .replace(
           /"(password|token|secret|passwordConfirm|apiKey|accessToken|authorization|bearer)":\s*"(?:[^"\\]|\\.)*"/gi,
@@ -210,7 +214,11 @@ function subscribeToPocketbaseSSE(
     }
 
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      this.logger.error("Maximum reconnection attempts reached", { baseUrl, collection });
+      this.logger.error("PocketBase trigger permanently closed after max reconnection attempts", {
+        baseUrl,
+        collection,
+        reconnectAttempts,
+      });
       this.emitError(
         new Error(
           `PocketBase SSE: Maximum reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached`,
