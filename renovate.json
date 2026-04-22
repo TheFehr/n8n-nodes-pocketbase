@@ -3,4 +3,3 @@
   "extends": ["config:recommended"],
   "ignorePaths": ["docker-compose.test.yml"]
 }
-

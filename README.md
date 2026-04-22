@@ -7,11 +7,23 @@ PocketBase is an open source backend consisting of embedded database (SQLite) wi
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
 [Installation](#installation)  
+[Usage Tips](#usage-tips)  
 [Operations](#operations)  
 [Credentials](#credentials)
 [Compatibility](#compatibility)  
 [Development](#development)  
 [Resources](#resources)
+
+## Usage Tips
+
+### Clearing Fields
+To clear a field (set it to its zero-value or delete a file), you can send `null` as the value:
+- **Text/Number/Select/Relation**: Use an expression to return `null` to clear the field.
+- **JSON**: Use `null` to store a literal null value.
+- **File**: Use `null` to delete the existing file.
+
+In the **Fields** parameter, use an expression: `={{ null }}`.  
+In the **JSON Body**, use the literal `null`: `{"myField": null}`.
 
 ## Installation
 
@@ -21,6 +33,12 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 
 Nearly all PocketBase operations for Base collections should be implemented.
 
+### Trigger Node (Beta)
+
+This node allows you to subscribe to PocketBase events (create, update, delete) in real-time via Server-Sent Events (SSE).
+
+**Note**: The trigger node is currently in Beta. We've implemented basic reconnection logic, but it may still be sensitive to network interruptions or large amounts of data. Please use with caution in production.
+
 ## Credentials
 
 Ensure you have an Auth collection in your PocketBase defined and the "Username/Password" Auth method turned on.  
@@ -28,7 +46,7 @@ Alternatively, you can use your administrator account and the "\_superusers" col
 
 ## Compatibility
 
-This was developed for version 2.16.2 of n8n and version 0.37.2 of PocketBase.
+This was developed for version 2.17.5 of n8n and version 0.37.2 of PocketBase.
 
 ## Development
 

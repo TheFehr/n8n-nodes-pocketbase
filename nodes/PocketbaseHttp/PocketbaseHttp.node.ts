@@ -5,8 +5,8 @@ import {
   recordUpdatePreSendAction,
   recordViewPostReceiveAction,
   recordViewPreSendAction,
-} from "./GenericFunctions";
-import { LoadOptions } from "./LoadOptions";
+} from "../Common/GenericFunctions";
+import { LoadOptions } from "../Common/LoadOptions";
 
 export class PocketbaseHttp implements INodeType {
   description: INodeTypeDescription = {
@@ -30,7 +30,6 @@ export class PocketbaseHttp implements INodeType {
       },
     ],
     requestDefaults: {
-      returnFullResponse: true,
       baseURL: '={{$credentials.url.replace(new RegExp("/$"), "")}}',
       headers: {
         Accept: "application/json",
@@ -288,6 +287,7 @@ export class PocketbaseHttp implements INodeType {
           loadOptionsMethod: "getFields",
         },
         default: [],
+        description: "Add fields to be sent. To clear a field, use an expression: <code>={{ null }}</code>.",
       },
       {
         displayName: "JSON Body",
@@ -301,6 +301,7 @@ export class PocketbaseHttp implements INodeType {
         },
         default: "",
         placeholder: "Body according to the collection's schema",
+        description: "JSON object to be sent. To clear a field, use <code>null</code> as value: <code>{\"myField\": null}</code>.",
       },
       {
         displayName: "Binary Property Name",
