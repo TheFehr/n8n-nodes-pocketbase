@@ -29,7 +29,8 @@ export async function prepareRequestBody(
           name.trim() !== "" &&
           value !== undefined
         ) {
-          body[name] = value;
+          const key = name.trim();
+          body[key] = value;
         }
       });
     }
@@ -45,7 +46,8 @@ export async function prepareRequestBody(
           key.trim() !== "" &&
           value !== undefined
         ) {
-          filteredParsedBody[key] = value;
+          const trimmedKey = key.trim();
+          filteredParsedBody[trimmedKey] = value;
         }
       });
       Object.assign(body, filteredParsedBody);
@@ -69,8 +71,9 @@ export async function prepareRequestBody(
         name.trim() !== "" &&
         value !== undefined
       ) {
+        const key = name.trim();
         const stringValue = (value === null) ? "null" : (typeof value === "object" ? JSON.stringify(value) : String(value));
-        formData.append(name, stringValue);
+        formData.append(key, stringValue);
       }
     });
   }
@@ -85,8 +88,9 @@ export async function prepareRequestBody(
         key.trim() !== "" &&
         value !== undefined
       ) {
+        const trimmedKey = key.trim();
         const val = (value === null) ? "null" : (typeof value === "object" ? JSON.stringify(value) : String(value));
-        formData.append(key, val);
+        formData.append(trimmedKey, val);
       }
     });
   }

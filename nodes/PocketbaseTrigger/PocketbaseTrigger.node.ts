@@ -103,6 +103,7 @@ function subscribeToPocketbaseSSE(
   let isClosed = false;
   let isReconnecting = false;
   let reconnectTimeout: NodeJS.Timeout | null = null;
+  let stabilityTimer: NodeJS.Timeout | null = null;
   let reconnectAttempts = 0;
   const MAX_RECONNECT_ATTEMPTS = 50;
   let consecutiveFailures = 0;
@@ -120,9 +121,14 @@ function subscribeToPocketbaseSSE(
           subscriptions: [collection],
         },
       });
-      // Reset counters only after successful subscription
-      reconnectAttempts = 0;
-      consecutiveFailures = 0;
+
+      // Reset counters only after the stream has been stable for a short window
+      if (stabilityTimer) clearTimeout(stabilityTimer);
+      stabilityTimer = setTimeout(() => {
+        reconnectAttempts = 0;
+        consecutiveFailures = 0;
+        stabilityTimer = null;
+      }, 5000);
     } catch (error) {
       this.logger.error("Failed to connect to PocketBase SSE", { error, collection });
       const normalizedError =
@@ -138,6 +144,10 @@ function subscribeToPocketbaseSSE(
   };
 
   const onError = (error: any) => {
+    if (stabilityTimer) {
+      clearTimeout(stabilityTimer);
+      stabilityTimer = null;
+    }
     this.logger.error("PocketBase SSE connection failure", {
       error,
       baseUrl,
@@ -205,6 +215,11 @@ function subscribeToPocketbaseSSE(
     if (isClosed || isReconnecting) return;
     isReconnecting = true;
 
+    if (stabilityTimer) {
+      clearTimeout(stabilityTimer);
+      stabilityTimer = null;
+    }
+
     if (es) {
       es.removeEventListener("PB_CONNECT", onConnect);
       es.removeEventListener("error", onError);
@@ -243,6 +258,10 @@ function subscribeToPocketbaseSSE(
     closeFunction: async () => {
       isClosed = true;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (stabilityTimer) {
+        clearTimeout(stabilityTimer);
+        stabilityTimer = null;
+      }
       if (es) {
         es.removeEventListener("PB_CONNECT", onConnect);
         es.removeEventListener("error", onError);

@@ -81,7 +81,7 @@ describe("RequestBodyFunctions", () => {
       );
     });
 
-    it("should parse and append bodyJson correctly in Multipart mode, converting null to 'null' string", async () => {
+    it("should parse and append bodyJson correctly in Multipart mode, converting null to 'null' string and removing stale Content-Type", async () => {
       const appendSpy = vi.spyOn(FormData.prototype, "append");
       const mockThis = {
         getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
@@ -103,7 +103,11 @@ describe("RequestBodyFunctions", () => {
         },
       } as unknown as IExecuteSingleFunctions;
 
-      const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
+      const requestOptions: IHttpRequestOptions = {
+        url: "http://test.com",
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      };
       const result = await prepareRequestBody.call(mockThis, requestOptions);
 
       expect(appendSpy).toHaveBeenCalledWith("a", "1");
@@ -120,6 +124,8 @@ describe("RequestBodyFunctions", () => {
 
       expect(result.headers).toBeDefined();
       expect(result.headers!["content-type"]).toContain("multipart/form-data");
+      // Verify that the stale "Content-Type" key is removed
+      expect(Object.keys(result.headers!)).not.toContain("Content-Type");
     });
 
     describe("fields bodyType", () => {
@@ -135,6 +141,43 @@ describe("RequestBodyFunctions", () => {
         ],
       };
 
+      it("should trim field names in JSON mode", async () => {
+        const mockThis = {
+          getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
+            if (name === "bodyType") return ["fields"];
+            if (name === "fields") return { assignments: [{ name: "  trimmedKey  ", value: "value" }] };
+            return defaultValue;
+          }),
+          logger: {
+            info: vi.fn(),
+            debug: vi.fn(),
+          },
+        } as unknown as IExecuteSingleFunctions;
+
+        const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
+        const result = await prepareRequestBody.call(mockThis, requestOptions);
+
+        expect(result.body).toEqual({ trimmedKey: "value" });
+      });
+
+      it("should trim JSON keys in JSON mode", async () => {
+        const mockThis = {
+          getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
+            if (name === "bodyType") return ["bodyJson"];
+            if (name === "bodyJson") return '{"  jsonKey  ": "value"}';
+            return defaultValue;
+          }),
+          logger: {
+            info: vi.fn(),
+            debug: vi.fn(),
+          },
+        } as unknown as IExecuteSingleFunctions;
+
+        const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
+        const result = await prepareRequestBody.call(mockThis, requestOptions);
+
+        expect(result.body).toEqual({ jsonKey: "value" });
+      });
       it("should filter invalid entries and include null as null in JSON mode", async () => {
         const mockThis = {
           getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
