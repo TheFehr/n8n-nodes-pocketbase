@@ -121,18 +121,24 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
-      expect(triggeredData, "Timeout waiting for Pocketbase trigger: triggeredData not set after 20s").toBeDefined();
+      expect(
+        triggeredData,
+        "Timeout waiting for Pocketbase trigger: triggeredData not set after 20s",
+      ).toBeDefined();
       expect(triggeredData).toHaveLength(1);
       expect(triggeredData[0]).toHaveLength(1);
       expect(triggeredData[0][0].json.email).toBe(uniqueEmail);
     } finally {
       if (createdRecordId) {
-        const deleteRes = await fetch(`${baseUrl}/api/collections/users/records/${createdRecordId}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: token,
+        const deleteRes = await fetch(
+          `${baseUrl}/api/collections/users/records/${createdRecordId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: token,
+            },
           },
-        });
+        );
         if (!deleteRes.ok) {
           console.warn(`Failed to cleanup test record ${createdRecordId}: ${deleteRes.status}`);
         }

@@ -1,8 +1,4 @@
-import type {
-  IDataObject,
-  ILoadOptionsFunctions,
-  INodePropertyOptions,
-} from "n8n-workflow";
+import type { IDataObject, ILoadOptionsFunctions, INodePropertyOptions } from "n8n-workflow";
 
 export interface PocketBaseField {
   autogeneratePattern?: string;
@@ -51,8 +47,9 @@ async function loadPocketBaseFields(
  * Helper to generate a descriptive label from a record's data.
  */
 function getRecordLabel(id: string, data: IDataObject): string {
-  const name = data.name as string | undefined;
-  if (name) return name;
+  if (data.name !== null && data.name !== undefined) {
+    return String(data.name);
+  }
 
   // Extract a descriptive label from available columns
   const shortColumns = Object.entries(data)
@@ -65,7 +62,7 @@ function getRecordLabel(id: string, data: IDataObject): string {
     .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
 
   const fallback = shortColumns.join(", ").substring(0, 100);
-  return fallback || id;
+  return fallback || id || "";
 }
 
 export const LoadOptions = {

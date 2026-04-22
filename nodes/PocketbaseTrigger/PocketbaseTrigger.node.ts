@@ -145,7 +145,9 @@ function subscribeToPocketbaseSSE(
       baseUrl,
     });
 
-    const normalizedError = new Error((error && error.message) || "PocketBase SSE connection failure");
+    const normalizedError = new Error(
+      (error && error.message) || "PocketBase SSE connection failure",
+    );
     if (error && error.code) (normalizedError as any).code = error.code;
     if (error && error.status) (normalizedError as any).status = error.status;
     (normalizedError as any).originalErrorEvent = error;

@@ -23,7 +23,7 @@ Nearly all PocketBase operations for Base collections should be implemented.
 
 ### Trigger Node (Beta)
 
-This node allows you to subscribe to PocketBase events (create, update, delete) in real-time via Server-Sent Events (SSE). 
+This node allows you to subscribe to PocketBase events (create, update, delete) in real-time via Server-Sent Events (SSE).
 
 **Note**: The trigger node is currently in Beta. We've implemented basic reconnection logic, but it may still be sensitive to network interruptions or large amounts of data. Please use with caution in production.
 

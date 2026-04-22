@@ -49,7 +49,10 @@ describe("GenericFunctions", () => {
       ]);
 
       const requestOptions: DeclarativeRestApiSettings.ResultOptions = {};
-      const result = await pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions);
+      const result = await pagination.call(
+        mockThis as unknown as IExecutePaginationFunctions,
+        requestOptions,
+      );
 
       expect(result).toHaveLength(3);
       expect(result).toEqual([{ json: { id: 1 } }, { json: { id: 2 } }, { json: { id: 3 } }]);
@@ -75,40 +78,43 @@ describe("GenericFunctions", () => {
       ]);
 
       const requestOptions: DeclarativeRestApiSettings.ResultOptions = {};
-      const result = await pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions);
+      const result = await pagination.call(
+        mockThis as unknown as IExecutePaginationFunctions,
+        requestOptions,
+      );
 
       expect(result).toHaveLength(0);
       expect(mockThis.makeRoutingRequest).toHaveBeenCalledTimes(1);
       expect(mockThis.logger.warn).toHaveBeenCalledWith(
         expect.stringContaining("returned 0 items for page 1 even though totalPages is 5"),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
     it("should not log warning if items.length === 0 and page === totalPages", async () => {
-        mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: any) => {
-          if (name === "parameters.allElements") return true;
-          if (name === "parameters.page") return 1;
-          return defaultValue;
-        });
-  
-        // Mock first page response where it is the last page and empty
-        mockThis.makeRoutingRequest.mockResolvedValueOnce([
-          {
-            json: {
-              page: 1,
-              totalPages: 1,
-              items: [],
-            },
-          },
-        ]);
-  
-        const requestOptions: DeclarativeRestApiSettings.ResultOptions = {};
-        await pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions);
-  
-        expect(mockThis.makeRoutingRequest).toHaveBeenCalledTimes(1);
-        expect(mockThis.logger.warn).not.toHaveBeenCalled();
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: any) => {
+        if (name === "parameters.allElements") return true;
+        if (name === "parameters.page") return 1;
+        return defaultValue;
       });
+
+      // Mock first page response where it is the last page and empty
+      mockThis.makeRoutingRequest.mockResolvedValueOnce([
+        {
+          json: {
+            page: 1,
+            totalPages: 1,
+            items: [],
+          },
+        },
+      ]);
+
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {};
+      await pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions);
+
+      expect(mockThis.makeRoutingRequest).toHaveBeenCalledTimes(1);
+      expect(mockThis.logger.warn).not.toHaveBeenCalled();
+    });
 
     it("should throw error if maxPages exceeded", async () => {
       mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: any) => {
@@ -118,7 +124,9 @@ describe("GenericFunctions", () => {
       });
 
       const requestOptions: DeclarativeRestApiSettings.ResultOptions = {};
-      await expect(pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions)).rejects.toThrow("Pagination exceeded maximum of 1000 pages");
+      await expect(
+        pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions),
+      ).rejects.toThrow("Pagination exceeded maximum of 1000 pages");
     });
   });
 });

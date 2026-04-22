@@ -51,13 +51,15 @@ describe("RequestBodyFunctions", () => {
       const mockThis = {
         getNodeParameter: vi.fn().mockImplementation((name) => {
           if (name === "bodyType") return ["bodyJson"];
-          if (name === "bodyJson") return '{invalid}';
+          if (name === "bodyJson") return "{invalid}";
           return undefined;
         }),
       } as unknown as IExecuteSingleFunctions;
 
       const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
-      await expect(prepareRequestBody.call(mockThis, requestOptions)).rejects.toThrow("Invalid JSON in Body");
+      await expect(prepareRequestBody.call(mockThis, requestOptions)).rejects.toThrow(
+        "Invalid JSON in Body",
+      );
     });
 
     it("should throw error if bodyJson is not an object", async () => {
@@ -70,7 +72,9 @@ describe("RequestBodyFunctions", () => {
       } as unknown as IExecuteSingleFunctions;
 
       const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
-      await expect(prepareRequestBody.call(mockThis, requestOptions)).rejects.toThrow("JSON Body must be a JSON object");
+      await expect(prepareRequestBody.call(mockThis, requestOptions)).rejects.toThrow(
+        "JSON Body must be a JSON object",
+      );
     });
 
     it("should parse and append bodyJson correctly in Multipart mode", async () => {
@@ -88,7 +92,9 @@ describe("RequestBodyFunctions", () => {
           debug: vi.fn(),
         },
         helpers: {
-          assertBinaryData: vi.fn().mockReturnValue({ mimeType: "text/plain", fileName: "test.txt" }),
+          assertBinaryData: vi
+            .fn()
+            .mockReturnValue({ mimeType: "text/plain", fileName: "test.txt" }),
           getBinaryDataBuffer: vi.fn().mockResolvedValue(Buffer.from("hello")),
         },
       } as unknown as IExecuteSingleFunctions;
@@ -98,10 +104,14 @@ describe("RequestBodyFunctions", () => {
 
       expect(appendSpy).toHaveBeenCalledWith("a", "1");
       expect(appendSpy).toHaveBeenCalledWith("b", '{"c":2}');
-      expect(appendSpy).toHaveBeenCalledWith("file", expect.any(Buffer), expect.objectContaining({
-        contentType: "text/plain",
-        filename: "test.txt",
-      }));
+      expect(appendSpy).toHaveBeenCalledWith(
+        "file",
+        expect.any(Buffer),
+        expect.objectContaining({
+          contentType: "text/plain",
+          filename: "test.txt",
+        }),
+      );
 
       // Since it's a mock FormData if it was imported correctly, but it uses the actual form-data lib
       // We can check if the headers were set
@@ -132,7 +142,8 @@ describe("RequestBodyFunctions", () => {
           logger: {
             info: vi.fn(),
             debug: vi.fn(),
-          },        } as unknown as IExecuteSingleFunctions;
+          },
+        } as unknown as IExecuteSingleFunctions;
 
         const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
         const result = await prepareRequestBody.call(mockThis, requestOptions);
@@ -156,8 +167,11 @@ describe("RequestBodyFunctions", () => {
           logger: {
             info: vi.fn(),
             debug: vi.fn(),
-          },          helpers: {
-            assertBinaryData: vi.fn().mockReturnValue({ mimeType: "text/plain", fileName: "test.txt" }),
+          },
+          helpers: {
+            assertBinaryData: vi
+              .fn()
+              .mockReturnValue({ mimeType: "text/plain", fileName: "test.txt" }),
             getBinaryDataBuffer: vi.fn().mockResolvedValue(Buffer.from("hello")),
           },
         } as unknown as IExecuteSingleFunctions;
@@ -168,7 +182,7 @@ describe("RequestBodyFunctions", () => {
         expect(appendSpy).toHaveBeenCalledWith("validString", "hello");
         expect(appendSpy).toHaveBeenCalledWith("validObject", '{"foo":"bar"}');
 
-        const appendedKeys = appendSpy.mock.calls.map(call => call[0]);
+        const appendedKeys = appendSpy.mock.calls.map((call) => call[0]);
         expect(appendedKeys).not.toContain("");
         expect(appendedKeys).not.toContain("  ");
         expect(appendedKeys).not.toContain(123);

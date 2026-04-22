@@ -19,9 +19,17 @@ export async function prepareRequestBody(
     const body: IDataObject = {};
 
     if (bodyType.includes("fields")) {
-      const fields = this.getNodeParameter("fields", { assignments: [] }) as AssignmentCollectionValue;
+      const fields = this.getNodeParameter("fields", {
+        assignments: [],
+      }) as AssignmentCollectionValue;
       fields?.assignments?.forEach(({ name, value }) => {
-        if (name && typeof name === "string" && name.trim() !== "" && value !== undefined && value !== null) {
+        if (
+          name &&
+          typeof name === "string" &&
+          name.trim() !== "" &&
+          value !== undefined &&
+          value !== null
+        ) {
           body[name] = value;
         }
       });
@@ -42,13 +50,20 @@ export async function prepareRequestBody(
   const formData = new FormData();
 
   if (bodyType.includes("fields")) {
-    (this.getNodeParameter("fields", { assignments: [] }) as AssignmentCollectionValue)
-      ?.assignments?.forEach(({ name, value }) => {
-        if (name && typeof name === "string" && name.trim() !== "" && value !== undefined && value !== null) {
-          const stringValue = typeof value === "object" ? JSON.stringify(value) : String(value);
-          formData.append(name, stringValue);
-        }
-      });
+    (
+      this.getNodeParameter("fields", { assignments: [] }) as AssignmentCollectionValue
+    )?.assignments?.forEach(({ name, value }) => {
+      if (
+        name &&
+        typeof name === "string" &&
+        name.trim() !== "" &&
+        value !== undefined &&
+        value !== null
+      ) {
+        const stringValue = typeof value === "object" ? JSON.stringify(value) : String(value);
+        formData.append(name, stringValue);
+      }
+    });
   }
 
   if (bodyType.includes("bodyJson")) {
@@ -76,7 +91,9 @@ async function handleBinaryData(this: IExecuteSingleFunctions, formData: FormDat
   const binaryPropertyName = this.getNodeParameter("binaryPropertyName", undefined) as string;
 
   if (!binaryPropertyName) {
-    throw new Error("Binary data selected but no property name provided. Please specify which binary property to use.");
+    throw new Error(
+      "Binary data selected but no property name provided. Please specify which binary property to use.",
+    );
   }
 
   const binaryFieldName = this.getNodeParameter("binaryFieldName", "") as string;

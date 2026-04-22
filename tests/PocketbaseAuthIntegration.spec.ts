@@ -132,21 +132,27 @@ describe.skipIf(!runIntegration)("PocketbaseAuth Integration", () => {
         if (!cleanupToken) {
           try {
             // Re-authenticate to get a fresh token if everything else failed
-            const authRes = await fetch(`${baseUrl}/api/collections/_superusers/auth-with-password`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ identity: email, password: newPassword }),
-            });
+            const authRes = await fetch(
+              `${baseUrl}/api/collections/_superusers/auth-with-password`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ identity: email, password: newPassword }),
+              },
+            );
             if (authRes.ok) {
               const data = (await authRes.json()) as any;
               cleanupToken = data.token;
             } else {
               // Try with old password just in case it didn't change
-              const authResOld = await fetch(`${baseUrl}/api/collections/_superusers/auth-with-password`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ identity: email, password: oldPassword }),
-              });
+              const authResOld = await fetch(
+                `${baseUrl}/api/collections/_superusers/auth-with-password`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ identity: email, password: oldPassword }),
+                },
+              );
               if (authResOld.ok) {
                 const data = (await authResOld.json()) as any;
                 cleanupToken = data.token;
@@ -158,17 +164,20 @@ describe.skipIf(!runIntegration)("PocketbaseAuth Integration", () => {
         }
 
         if (cleanupToken) {
-          const cleanupRes = await fetch(`${baseUrl}/api/collections/_superusers/records/${record.id}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: cleanupToken,
+          const cleanupRes = await fetch(
+            `${baseUrl}/api/collections/_superusers/records/${record.id}`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: cleanupToken,
+              },
+              body: JSON.stringify({
+                password: oldPassword,
+                passwordConfirm: oldPassword,
+              }),
             },
-            body: JSON.stringify({
-              password: oldPassword,
-              passwordConfirm: oldPassword,
-            }),
-          });
+          );
 
           if (!cleanupRes.ok) {
             console.warn("Failed to revert password during cleanup:", await cleanupRes.text());
