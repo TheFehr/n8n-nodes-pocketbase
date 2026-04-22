@@ -81,13 +81,11 @@ export class PocketbaseTrigger implements INodeType {
       manualTriggerFunction: async () => {
         const sampleData = {
           action: "create",
-          record: {
-            id: "sample-id",
-            collectionId: "sample-collection-id",
-            collectionName: collection,
-            created: new Date().toISOString(),
-            updated: new Date().toISOString(),
-          },
+          id: "sample-id",
+          collectionId: "sample-collection-id",
+          collectionName: collection,
+          created: new Date().toISOString(),
+          updated: new Date().toISOString(),
         };
         this.emit([this.helpers.returnJsonArray(sampleData)]);
       },
@@ -164,7 +162,11 @@ function subscribeToPocketbaseSSE(
     try {
       const data = JSON.parse(e.data as string);
       if (events.includes(data.action) && data.record) {
-        this.emit([this.helpers.returnJsonArray(data)]);
+        const output = {
+          ...data.record,
+          action: data.action,
+        };
+        this.emit([this.helpers.returnJsonArray(output)]);
       }
     } catch (error) {
       const rawData = e.data as string;

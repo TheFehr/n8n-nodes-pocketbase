@@ -94,7 +94,7 @@ describe("PocketbaseTrigger", () => {
     });
 
     expect(triggerFunctions.emit).toHaveBeenCalledWith([
-      [{ json: { action: "create", record: { id: "1", title: "Hello" } } }],
+      [{ json: { action: "create", id: "1", title: "Hello" } }],
     ]);
   });
 
@@ -114,9 +114,7 @@ describe("PocketbaseTrigger", () => {
           {
             json: expect.objectContaining({
               action: "create",
-              record: expect.objectContaining({
-                collectionName: "posts",
-              }),
+              collectionName: "posts",
             }),
           },
         ],
