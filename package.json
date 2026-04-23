@@ -68,5 +68,5 @@
       "dist/nodes/PocketbaseTrigger/PocketbaseTrigger.node.js"
     ]
   },
-  "pocketbaseVersion": "0.37.2"
+  "pocketbaseVersion": "0.37.3"
 }
