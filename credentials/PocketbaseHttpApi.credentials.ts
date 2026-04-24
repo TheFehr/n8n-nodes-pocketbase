@@ -7,7 +7,6 @@ import {
   IHttpRequestHelper,
   INodeProperties,
 } from "n8n-workflow";
-import { login, refresh } from "../nodes/Common/PocketbaseAuth";
 
 export class PocketbaseHttpApi implements ICredentialType {
   name = "pocketbaseHttpApi";
@@ -39,12 +38,11 @@ export class PocketbaseHttpApi implements ICredentialType {
       required: true,
     },
     {
-      displayName: "Session Token",
-      name: "token",
+      displayName: "JWT Token",
+      name: "jwtToken",
       type: "hidden",
       typeOptions: {
         expirable: true,
-        password: true,
       },
       default: "",
     },
@@ -79,17 +77,25 @@ export class PocketbaseHttpApi implements ICredentialType {
   };
 
   async preAuthentication(this: IHttpRequestHelper, credentials: ICredentialDataDecryptedObject) {
-    if (credentials.token) {
-      return await refresh.call(this, credentials);
-    }
-    return await login.call(this, credentials);
+    const url = (credentials.url as string).replace(/\/$/, "");
+
+    const { token } = (await this.helpers.httpRequest({
+      method: "POST",
+      url: `${url}/api/collections/_superusers/auth-with-password`,
+      body: {
+        identity: credentials.username,
+        password: credentials.password,
+      },
+    })) as { token: string };
+
+    return { jwtToken: token };
   }
 
   authenticate: IAuthenticate = {
     type: "generic",
     properties: {
       headers: {
-        Authorization: "={{ $credentials.token }}",
+        Authorization: "={{ $credentials.jwtToken }}",
       },
     },
   };

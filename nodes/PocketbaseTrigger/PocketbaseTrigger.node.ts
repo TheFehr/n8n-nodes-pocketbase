@@ -113,7 +113,7 @@ function subscribeToPocketbaseSSE(
       const data = JSON.parse(e.data as string);
       const clientId = data.clientId;
 
-      await this.helpers.requestWithAuthentication.call(this, "pocketbaseHttpApi", {
+      await this.helpers.httpRequestWithAuthentication.call(this, "pocketbaseHttpApi", {
         method: "POST",
         url: `${baseUrl}/api/realtime`,
         body: {

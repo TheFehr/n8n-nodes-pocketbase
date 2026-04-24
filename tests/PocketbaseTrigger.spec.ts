@@ -21,7 +21,7 @@ describe("PocketbaseTrigger", () => {
       getCredentials: vi.fn().mockResolvedValue({ url: "http://localhost:8090" }),
       getNodeParameter: vi.fn(),
       helpers: {
-        requestWithAuthentication: vi.fn(),
+        httpRequestWithAuthentication: vi.fn(),
         returnJsonArray: vi.fn((data: any) => [{ json: data }]),
       },
       emit: vi.fn(),
@@ -59,7 +59,7 @@ describe("PocketbaseTrigger", () => {
     )[1];
     await pbConnectCallback({ data: JSON.stringify({ clientId: "mock-client-id" }) });
 
-    expect(triggerFunctions.helpers.requestWithAuthentication).toHaveBeenCalledWith(
+    expect(triggerFunctions.helpers.httpRequestWithAuthentication).toHaveBeenCalledWith(
       "pocketbaseHttpApi",
       {
         method: "POST",
