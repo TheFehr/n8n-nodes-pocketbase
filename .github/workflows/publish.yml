@@ -60,6 +60,7 @@ on:
       # Matches 0.1.0, 1.2.3, 2.0.0-rc.1, etc.
       # See "TAG CONVENTION" above if you prefer tags with a "v" prefix.
       - '*.*.*'
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -74,12 +75,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Fix detached HEAD
-        run: |
-          git checkout -B main
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
