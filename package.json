@@ -31,7 +31,7 @@
     "test:pipeline": "bash scripts/full-test.sh",
     "version:update": "tsx scripts/update-versions.ts",
     "version:check": "tsx scripts/update-versions.ts --check",
-    "release": "release-it",
+    "release": "n8n-node release",
     "prepublishOnly": "n8n-node prerelease"
   },
   "dependencies": {
