@@ -1,4 +1,8 @@
-### Changelog
+# Changelog
+
+# [2.3.0](https://github.com/TheFehr/n8n-nodes-pocketbase/compare/2.2.0...2.3.0) (2026-04-25)
+
+##
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
