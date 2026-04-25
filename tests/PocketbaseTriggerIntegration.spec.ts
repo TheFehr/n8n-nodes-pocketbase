@@ -40,7 +40,7 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
         return undefined;
       },
       helpers: {
-        requestWithAuthentication: async (cred: string, options: any) => {
+        httpRequestWithAuthentication: async (cred: string, options: any) => {
           const res = await fetch(options.url, {
             method: options.method,
             headers: {
