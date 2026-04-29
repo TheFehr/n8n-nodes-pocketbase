@@ -43,6 +43,10 @@ jobs:
             echo "updates_found=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Update package-lock.json
+        if: steps.check_updates.outputs.updates_found == 'true'
+        run: npm install
+
       - name: Run pipeline
         if: steps.check_updates.outputs.updates_found == 'true'
         run: npm run test:pipeline
