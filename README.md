@@ -46,7 +46,7 @@ Alternatively, you can use your administrator account and the "\_superusers" col
 
 ## Compatibility
 
-This was developed for version 2.17.8 of n8n and version 0.37.4 of PocketBase.
+This was developed for version 2.18.5 of n8n and version 0.37.4 of PocketBase.
 
 ## Development
 
