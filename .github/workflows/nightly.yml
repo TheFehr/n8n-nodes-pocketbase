@@ -43,9 +43,11 @@ jobs:
             echo "updates_found=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Update package-lock.json
+      - name: Update files
         if: steps.check_updates.outputs.updates_found == 'true'
-        run: npm install
+        run: |
+          npm run version:update
+          npm install
 
       - name: Run pipeline
         if: steps.check_updates.outputs.updates_found == 'true'
@@ -57,7 +59,7 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update compatibility versions in README.md"
+          commit-message: "chore: nightly compatibility updates"
           title: "Nightly Compatibility Updates"
           body: "Automated nightly updates for compatibility versions."
           branch: nightly-updates
