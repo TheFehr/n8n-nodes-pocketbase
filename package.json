@@ -50,7 +50,7 @@
     "vitest": "^4.1.4"
   },
   "peerDependencies": {
-    "n8n-workflow": "^2.22.4"
+    "n8n-workflow": "^2.22.5"
   },
   "n8n": {
     "n8nNodesApiVersion": 1,
@@ -63,5 +63,5 @@
       "dist/nodes/PocketbaseTrigger/PocketbaseTrigger.node.js"
     ]
   },
-  "pocketbaseVersion": "0.38.2"
+  "pocketbaseVersion": "0.39.0"
 }
