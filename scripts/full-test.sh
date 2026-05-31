@@ -96,6 +96,7 @@ echo "Running Integration Workflow (process 1)..."
 docker compose -f docker-compose.test.yml run --rm \
   --entrypoint /bin/sh n8n -c "
     mkdir -p /home/node/.n8n/nodes/node_modules && \
+    rm -f \"/home/node/.n8n/nodes/node_modules/$PACKAGE_NAME\" && \
     ln -sf /home/node/custom-nodes \"/home/node/.n8n/nodes/node_modules/$PACKAGE_NAME\" && \
     n8n import:credentials --input=/home/node/custom-nodes/tests/workflows/integration_credentials.json && \
     n8n import:credentials --input=/home/node/custom-nodes/tests/workflows/integration_credentials_expired.json && \
@@ -146,6 +147,7 @@ set +e
 docker compose -f docker-compose.test.yml run --rm \
   --entrypoint /bin/sh n8n -c "
     mkdir -p /home/node/.n8n/nodes/node_modules && \
+    rm -f \"/home/node/.n8n/nodes/node_modules/$PACKAGE_NAME\" && \
     ln -sf /home/node/custom-nodes \"/home/node/.n8n/nodes/node_modules/$PACKAGE_NAME\" && \
     n8n execute --id=2
 " > expired_token_output.txt 2>&1
