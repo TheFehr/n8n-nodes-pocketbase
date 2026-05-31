@@ -19,6 +19,10 @@ describe("fetchPocketbaseToken", () => {
   });
 
   it("fetches a token and calls the auth endpoint", async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600;
+    const expectedToken = buildJwt({ exp: futureExp });
+    mockHttpRequest.mockResolvedValue({ token: expectedToken });
+
     const token = await fetchPocketbaseToken(
       mockHttpRequest,
       "http://localhost:8090",
@@ -26,7 +30,7 @@ describe("fetchPocketbaseToken", () => {
       "password123",
     );
 
-    expect(token).toBe("mock-jwt-token");
+    expect(token).toBe(expectedToken);
     expect(mockHttpRequest).toHaveBeenCalledOnce();
     expect(mockHttpRequest).toHaveBeenCalledWith({
       method: "POST",
@@ -70,6 +74,25 @@ describe("fetchPocketbaseToken", () => {
     const second = await fetchPocketbaseToken(mockHttpRequest, "http://expired.local", "admin", "pass");
 
     expect(second).toBe("fresh-token");
+    expect(mockHttpRequest).toHaveBeenCalledTimes(2);
+  });
+
+  it("propagates HTTP errors from the auth endpoint", async () => {
+    const networkError = new Error("connect ECONNREFUSED");
+    mockHttpRequest.mockRejectedValue(networkError);
+
+    await expect(
+      fetchPocketbaseToken(mockHttpRequest, "http://unreachable.local", "admin", "pass"),
+    ).rejects.toThrow("connect ECONNREFUSED");
+  });
+
+  it("re-fetches every call when the token has no exp claim", async () => {
+    const noExpToken = buildJwt({});
+    mockHttpRequest.mockResolvedValue({ token: noExpToken });
+
+    await fetchPocketbaseToken(mockHttpRequest, "http://no-exp.local", "admin", "pass");
+    await fetchPocketbaseToken(mockHttpRequest, "http://no-exp.local", "admin", "pass");
+
     expect(mockHttpRequest).toHaveBeenCalledTimes(2);
   });
 });
