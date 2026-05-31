@@ -1,10 +1,7 @@
 import {
-  IAuthenticate,
   IconFile,
-  ICredentialDataDecryptedObject,
   ICredentialTestRequest,
   ICredentialType,
-  IHttpRequestHelper,
   INodeProperties,
 } from "n8n-workflow";
 
@@ -37,15 +34,6 @@ export class PocketbaseHttpApi implements ICredentialType {
       default: "",
       required: true,
     },
-    {
-      displayName: "JWT Token",
-      name: "jwtToken",
-      type: "hidden",
-      typeOptions: {
-        expirable: true,
-      },
-      default: "",
-    },
   ];
 
   test: ICredentialTestRequest = {
@@ -74,30 +62,6 @@ export class PocketbaseHttpApi implements ICredentialType {
         },
       },
     ],
-  };
-
-  async preAuthentication(this: IHttpRequestHelper, credentials: ICredentialDataDecryptedObject) {
-    const url = (credentials.url as string).replace(/\/$/, "");
-
-    const { token } = (await this.helpers.httpRequest({
-      method: "POST",
-      url: `${url}/api/collections/_superusers/auth-with-password`,
-      body: {
-        identity: credentials.username,
-        password: credentials.password,
-      },
-    })) as { token: string };
-
-    return { jwtToken: token };
-  }
-
-  authenticate: IAuthenticate = {
-    type: "generic",
-    properties: {
-      headers: {
-        Authorization: "={{ $credentials.jwtToken }}",
-      },
-    },
   };
 
   icon = "file:pocketbase.svg" as IconFile;

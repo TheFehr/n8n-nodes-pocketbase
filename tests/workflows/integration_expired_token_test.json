@@ -1,0 +1,43 @@
+{
+  "id": "2",
+  "name": "Pocketbase Expired Token Test Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 100]
+    },
+    {
+      "parameters": {
+        "resource": "users",
+        "operation": "search"
+      },
+      "id": "2",
+      "name": "Pocketbase Search with Expired Token",
+      "type": "n8n-nodes-pocketbase.pocketbaseHttp",
+      "typeVersion": 1,
+      "position": [300, 100],
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id-expired"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [
+        [
+          {
+            "node": "Pocketbase Search with Expired Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

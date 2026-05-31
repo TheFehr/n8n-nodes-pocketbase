@@ -8,6 +8,64 @@ import {
 } from "n8n-workflow";
 import { prepareRequestBody } from "./RequestBodyFunctions";
 
+interface TokenCacheEntry {
+  token: string;
+  expiresAtMs: number;
+}
+
+const tokenCache = new Map<string, TokenCacheEntry>();
+
+function parseJwtExpiry(jwtToken: string): number {
+  try {
+    const [, payload] = jwtToken.split(".");
+    const padded = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
+    return typeof decoded.exp === "number" ? decoded.exp * 1000 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function _resetTokenCacheForTesting(): void {
+  tokenCache.clear();
+}
+
+export async function fetchPocketbaseToken(
+  httpRequest: (options: IHttpRequestOptions) => Promise<unknown>,
+  url: string,
+  username: string,
+  password: string,
+): Promise<string> {
+  const cacheKey = `${url}::${username}`;
+  const cached = tokenCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAtMs - 60_000) {
+    return cached.token;
+  }
+  const { token } = (await httpRequest({
+    method: "POST",
+    url: `${url}/api/collections/_superusers/auth-with-password`,
+    body: { identity: username, password },
+  })) as { token: string };
+  tokenCache.set(cacheKey, { token, expiresAtMs: parseJwtExpiry(token) });
+  return token;
+}
+
+export async function authenticatePreSend(
+  this: IExecuteSingleFunctions,
+  requestOptions: IHttpRequestOptions,
+): Promise<IHttpRequestOptions> {
+  const credentials = await this.getCredentials("pocketbaseHttpApi");
+  const url = (credentials.url as string).replace(/\/$/, "");
+  const token = await fetchPocketbaseToken(
+    (opts) => this.helpers.httpRequest(opts),
+    url,
+    credentials.username as string,
+    credentials.password as string,
+  );
+  requestOptions.headers = { ...requestOptions.headers, Authorization: token };
+  return requestOptions;
+}
+
 export async function recordViewPreSendAction(
   this: IExecuteSingleFunctions,
   requestOptions: IHttpRequestOptions,

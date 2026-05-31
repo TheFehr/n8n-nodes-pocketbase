@@ -230,7 +230,7 @@ describe("RequestBodyFunctions", () => {
         expect(appendSpy).toHaveBeenCalledWith("validObject", '{"foo":"bar"}');
         expect(appendSpy).toHaveBeenCalledWith("nullValue", "null");
 
-        const appendedKeys = appendSpy.mock.calls.map((call) => call[0]);
+        const appendedKeys = appendSpy.mock.calls.map((call: unknown[]) => call[0]);
         expect(appendedKeys).not.toContain("");
         expect(appendedKeys).not.toContain("  ");
         expect(appendedKeys).not.toContain(123);

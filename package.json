@@ -35,7 +35,8 @@
     "prepublishOnly": "n8n-node prerelease"
   },
   "dependencies": {
-    "eventsource": "^4.1.0"
+    "eventsource": "^4.1.0",
+    "form-data": "^4.0.5"
   },
   "devDependencies": {
     "@n8n/node-cli": "^0.29.0",
