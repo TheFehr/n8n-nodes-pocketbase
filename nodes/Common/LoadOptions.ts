@@ -1,4 +1,5 @@
 import type { IDataObject, ILoadOptionsFunctions, INodePropertyOptions } from "n8n-workflow";
+import { fetchPocketbaseToken } from "./GenericFunctions";
 
 export interface PocketBaseField {
   autogeneratePattern?: string;
@@ -26,21 +27,24 @@ async function loadPocketBaseFields(
   this: ILoadOptionsFunctions,
   collectionName: string | null = null,
 ): Promise<PocketBaseField[]> {
-  const { url } = await this.getCredentials("pocketbaseHttpApi");
-  const normalizedUrl = (url as string).replace(/\/$/, "");
+  const credentials = await this.getCredentials("pocketbaseHttpApi");
+  const normalizedUrl = (credentials.url as string).replace(/\/$/, "");
   const resource = collectionName
     ? collectionName
     : (this.getNodeParameter("resource") as unknown as string);
-  const { fields } = await this.helpers.httpRequestWithAuthentication.call(
-    this,
-    "pocketbaseHttpApi",
-    {
-      url: `${normalizedUrl}/api/collections/${resource}`,
-      method: "GET",
-    },
+  const token = await fetchPocketbaseToken(
+    (opts) => this.helpers.httpRequest(opts),
+    normalizedUrl,
+    credentials.username as string,
+    credentials.password as string,
   );
+  const { fields } = (await this.helpers.httpRequest({
+    url: `${normalizedUrl}/api/collections/${resource}`,
+    method: "GET",
+    headers: { Authorization: token },
+  })) as { fields: PocketBaseField[] };
 
-  return fields as PocketBaseField[];
+  return fields;
 }
 
 /**
@@ -67,20 +71,26 @@ function getRecordLabel(id: string, data: IDataObject): string {
 
 export const LoadOptions = {
   async getCollections(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-    const { url } = await this.getCredentials("pocketbaseHttpApi");
-    const normalizedUrl = (url as string).replace(/\/$/, "");
+    const credentials = await this.getCredentials("pocketbaseHttpApi");
+    const normalizedUrl = (credentials.url as string).replace(/\/$/, "");
+    const token = await fetchPocketbaseToken(
+      (opts) => this.helpers.httpRequest(opts),
+      normalizedUrl,
+      credentials.username as string,
+      credentials.password as string,
+    );
 
     const items: { name: string }[] = [];
     let page: number = 1;
     let totalPages: number = 0;
 
     do {
-      const { items: pageItems, totalPages: pageTotalPages } =
-        await this.helpers.httpRequestWithAuthentication.call(this, "pocketbaseHttpApi", {
-          url: `${normalizedUrl}/api/collections`,
-          method: "GET",
-          qs: { page },
-        });
+      const { items: pageItems, totalPages: pageTotalPages } = (await this.helpers.httpRequest({
+        url: `${normalizedUrl}/api/collections`,
+        method: "GET",
+        qs: { page },
+        headers: { Authorization: token },
+      })) as { items: { name: string }[]; totalPages: number };
 
       items.push(...pageItems);
       totalPages = pageTotalPages;
@@ -133,9 +143,15 @@ export const LoadOptions = {
   },
   async getRows(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
     const returnData: INodePropertyOptions[] = [];
-    const { url } = await this.getCredentials("pocketbaseHttpApi");
-    const normalizedUrl = (url as string).replace(/\/$/, "");
+    const credentials = await this.getCredentials("pocketbaseHttpApi");
+    const normalizedUrl = (credentials.url as string).replace(/\/$/, "");
     const resource = this.getNodeParameter("resource") as unknown as string;
+    const token = await fetchPocketbaseToken(
+      (opts) => this.helpers.httpRequest(opts),
+      normalizedUrl,
+      credentials.username as string,
+      credentials.password as string,
+    );
 
     const items: IDataObject[] = [];
     let page: number = 1;
@@ -143,14 +159,14 @@ export const LoadOptions = {
     const maxPages = 5; // Load up to 5 pages for the dropdown
 
     do {
-      const { items: pageItems, totalPages: pageTotalPages } =
-        await this.helpers.httpRequestWithAuthentication.call(this, "pocketbaseHttpApi", {
-          url: `${normalizedUrl}/api/collections/${resource}/records`,
-          method: "GET",
-          qs: { sort: "-created", page, perPage: 50 },
-        });
+      const { items: pageItems, totalPages: pageTotalPages } = (await this.helpers.httpRequest({
+        url: `${normalizedUrl}/api/collections/${resource}/records`,
+        method: "GET",
+        qs: { sort: "-created", page, perPage: 50 },
+        headers: { Authorization: token },
+      })) as { items: IDataObject[]; totalPages: number };
 
-      items.push(...(pageItems as IDataObject[]));
+      items.push(...pageItems);
       totalPages = pageTotalPages;
       page++;
     } while (page <= totalPages && page <= maxPages);

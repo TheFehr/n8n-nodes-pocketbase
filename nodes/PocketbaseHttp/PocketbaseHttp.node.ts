@@ -1,5 +1,6 @@
 import { NodeConnectionTypes, type INodeType, type INodeTypeDescription } from "n8n-workflow";
 import {
+  authenticatePreSend,
   pagination,
   recordCreatePreSendAction,
   recordUpdatePreSendAction,
@@ -68,7 +69,7 @@ export class PocketbaseHttp implements INodeType {
                 postReceive: [recordViewPostReceiveAction],
               },
               send: {
-                preSend: [recordViewPreSendAction],
+                preSend: [authenticatePreSend, recordViewPreSendAction],
                 paginate: true,
               },
               operations: { pagination },
@@ -84,7 +85,7 @@ export class PocketbaseHttp implements INodeType {
                 url: `=/api/collections/{{$parameter["resource"]}}/records/{{$parameter["elementId"]}}`,
               },
               send: {
-                preSend: [recordViewPreSendAction],
+                preSend: [authenticatePreSend, recordViewPreSendAction],
               },
             },
           },
@@ -98,7 +99,7 @@ export class PocketbaseHttp implements INodeType {
                 url: `=/api/collections/{{$parameter["resource"]}}/records`,
               },
               send: {
-                preSend: [recordCreatePreSendAction],
+                preSend: [authenticatePreSend, recordCreatePreSendAction],
               },
             },
           },
@@ -112,7 +113,7 @@ export class PocketbaseHttp implements INodeType {
                 url: `=/api/collections/{{$parameter["resource"]}}/records/{{$parameter["elementId"]}}`,
               },
               send: {
-                preSend: [recordUpdatePreSendAction],
+                preSend: [authenticatePreSend, recordUpdatePreSendAction],
               },
             },
           },

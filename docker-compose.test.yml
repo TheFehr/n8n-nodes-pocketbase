@@ -20,9 +20,13 @@ services:
       - N8N_TASK_BROKER_PORT=5680
     volumes:
       - .:/home/node/custom-nodes
+      - n8n_data:/home/node/.n8n
     # We would need to tell n8n to load the custom node from the volume
     # Usually this is done by installing it in ~/.n8n/nodes
     # For a test run, we can use an entrypoint script to symlink or install
     entrypoint: /bin/sh -c "mkdir -p /home/node/.n8n/nodes/node_modules && ln -sf /home/node/custom-nodes /home/node/.n8n/nodes/node_modules/n8n-nodes-pocketbase && n8n"
     depends_on:
       - pocketbase
+
+volumes:
+  n8n_data:
