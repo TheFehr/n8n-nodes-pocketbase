@@ -1,6 +1,6 @@
 services:
   pocketbase:
-    image: ghcr.io/muchobien/pocketbase:0.39.0
+    image: ghcr.io/muchobien/pocketbase:0.39.1
     ports:
       - "8090:8090"
     command:
