@@ -1,6 +1,9 @@
 name: Nightly Compatibility Check
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     - cron: "34 1 * * *"
   workflow_dispatch:
@@ -23,6 +26,7 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0 # Needed for auto-changelog to see full history and tags
           persist-credentials: false
           token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
 
@@ -34,8 +38,37 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # A push to main only matters here if it's the just-merged release PR
+      # (see "Create Pull Request" below) - detected via its "release" label
+      # rather than the commit message, so a manually-edited merge title
+      # can't break detection. Any other push is a no-op for this job.
+      - name: Check if this push is the merged release PR
+        id: release_check
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          HAS_RELEASE_LABEL=$(gh api "repos/${{ github.repository }}/commits/$(git rev-parse HEAD)/pulls" \
+            --jq '[.[] | select(.labels[].name == "release")] | length > 0')
+          echo "is_release=$HAS_RELEASE_LABEL" >> "$GITHUB_OUTPUT"
+
+      # Tags are an unprotected ref, so this push needs no bypass rights.
+      # Pushing it hands off to the existing tag-triggered publish.yml.
+      - name: Tag release commit
+        if: steps.release_check.outputs.is_release == 'true'
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Tagging release $VERSION"
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git tag "$VERSION"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$VERSION"
+
       - name: Check for updates
         id: check_updates
+        if: github.event_name != 'push'
         run: |
           if npm run version:check; then
             echo "updates_found=false" >> "$GITHUB_OUTPUT"
@@ -53,22 +86,41 @@ jobs:
         if: steps.check_updates.outputs.updates_found == 'true'
         run: npm run test:pipeline
 
+      - name: Bump patch version and changelog
+        if: steps.check_updates.outputs.updates_found == 'true'
+        id: bump
+        run: |
+          npm version patch --no-git-tag-version --allow-same-version > /dev/null
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "Bumped to $NEW_VERSION"
+          npx auto-changelog -p
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure release label exists
+        if: steps.check_updates.outputs.updates_found == 'true'
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: gh label create release --color 0e8a16 --description "Automated release PR" 2>/dev/null || true
+
       - name: Create Pull Request
         if: steps.check_updates.outputs.updates_found == 'true'
         id: cpr
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
-          commit-message: "chore: nightly compatibility updates"
-          title: "Nightly Compatibility Updates"
-          body: "Automated nightly updates for compatibility versions."
+          commit-message: "Release ${{ steps.bump.outputs.new_version }}"
+          title: "Release ${{ steps.bump.outputs.new_version }}"
+          body: "Automated nightly compatibility updates. Merging tags and publishes ${{ steps.bump.outputs.new_version }} to npm."
           branch: nightly-updates
           base: main
           delete-branch: true
           sign-commits: true
+          labels: release
 
       - name: Enable Auto-Merge
         if: steps.cpr.outputs.pull-request-operation == 'created'
         env:
           GH_TOKEN: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
-        run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-number }}"
+        run: |
+          gh pr merge --auto --squash --subject "Release ${{ steps.bump.outputs.new_version }}" \
+            "${{ steps.cpr.outputs.pull-request-number }}"
