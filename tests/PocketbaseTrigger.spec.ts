@@ -9,10 +9,30 @@ vi.mock("eventsource", () => {
   };
 });
 
+interface MockTriggerFunctions {
+  getCredentials: ReturnType<typeof vi.fn>;
+  getNodeParameter: ReturnType<typeof vi.fn>;
+  helpers: {
+    httpRequestWithAuthentication: ReturnType<typeof vi.fn>;
+    returnJsonArray: ReturnType<typeof vi.fn>;
+  };
+  emit: ReturnType<typeof vi.fn>;
+  emitError: ReturnType<typeof vi.fn>;
+  logger: {
+    error: ReturnType<typeof vi.fn>;
+  };
+}
+
+interface MockEventSourceInstance {
+  addEventListener: ReturnType<typeof vi.fn>;
+  removeEventListener: ReturnType<typeof vi.fn>;
+  close: ReturnType<typeof vi.fn>;
+}
+
 describe("PocketbaseTrigger", () => {
-  let triggerFunctions: any;
+  let triggerFunctions: MockTriggerFunctions;
   let node: PocketbaseTrigger;
-  let esInstance: any;
+  let esInstance: MockEventSourceInstance;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -22,7 +42,7 @@ describe("PocketbaseTrigger", () => {
       getNodeParameter: vi.fn(),
       helpers: {
         httpRequestWithAuthentication: vi.fn(),
-        returnJsonArray: vi.fn((data: any) => [{ json: data }]),
+        returnJsonArray: vi.fn((data: unknown) => [{ json: data }]),
       },
       emit: vi.fn(),
       emitError: vi.fn(),
@@ -36,9 +56,9 @@ describe("PocketbaseTrigger", () => {
       close: vi.fn(),
     };
     // Use a regular function to support 'new'
-    vi.mocked(EventSource).mockImplementation(function (this: any) {
+    vi.mocked(EventSource).mockImplementation(function (this: unknown) {
       return esInstance;
-    } as any);
+    } as unknown as (url: string | URL) => EventSource);
   });
 
   it("should perform handshake on PB_CONNECT", async () => {
@@ -55,8 +75,8 @@ describe("PocketbaseTrigger", () => {
 
     // Simulate PB_CONNECT
     const pbConnectCallback = esInstance.addEventListener.mock.calls.find(
-      (call: any) => call[0] === "PB_CONNECT",
-    )[1];
+      (call: unknown[]) => call[0] === "PB_CONNECT",
+    )![1];
     await pbConnectCallback({ data: JSON.stringify({ clientId: "mock-client-id" }) });
 
     expect(triggerFunctions.helpers.httpRequestWithAuthentication).toHaveBeenCalledWith(
@@ -82,8 +102,8 @@ describe("PocketbaseTrigger", () => {
     await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
     const collectionCallback = esInstance.addEventListener.mock.calls.find(
-      (call: any) => call[0] === "posts",
-    )[1];
+      (call: unknown[]) => call[0] === "posts",
+    )![1];
 
     // Event that matches
     await collectionCallback({
@@ -108,8 +128,8 @@ describe("PocketbaseTrigger", () => {
     await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
     const collectionCallback = esInstance.addEventListener.mock.calls.find(
-      (call: any) => call[0] === "posts",
-    )[1];
+      (call: unknown[]) => call[0] === "posts",
+    )![1];
 
     // Event with record already having an 'action' field
     await collectionCallback({
@@ -169,8 +189,8 @@ describe("PocketbaseTrigger", () => {
     await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
     const collectionCallback = esInstance.addEventListener.mock.calls.find(
-      (call: any) => call[0] === "posts",
-    )[1];
+      (call: unknown[]) => call[0] === "posts",
+    )![1];
 
     // Event that does NOT match ('update' instead of 'create')
     await collectionCallback({
@@ -209,8 +229,8 @@ describe("PocketbaseTrigger", () => {
       const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
       const errorCallback = esInstance.addEventListener.mock.calls.find(
-        (call: any) => call[0] === "error",
-      )[1];
+        (call: unknown[]) => call[0] === "error",
+      )![1];
 
       const mockError = new Error("Connection failed");
       errorCallback(mockError);
@@ -245,8 +265,8 @@ describe("PocketbaseTrigger", () => {
       const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
       const errorCallback = esInstance.addEventListener.mock.calls.find(
-        (call: any) => call[0] === "error",
-      )[1];
+        (call: unknown[]) => call[0] === "error",
+      )![1];
 
       const mockError = { message: "Conn failed", code: 500 };
       errorCallback(mockError);
@@ -280,8 +300,8 @@ describe("PocketbaseTrigger", () => {
     await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
     const collectionCallback = esInstance.addEventListener.mock.calls.find(
-      (call: any) => call[0] === "posts",
-    )[1];
+      (call: unknown[]) => call[0] === "posts",
+    )![1];
 
     // Invalid JSON with sensitive data and emails
     const invalidData =

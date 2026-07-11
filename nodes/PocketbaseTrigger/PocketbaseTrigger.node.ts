@@ -3,9 +3,10 @@ import {
   ITriggerResponse,
   INodeType,
   INodeTypeDescription,
+  IDataObject,
   NodeConnectionTypes,
 } from "n8n-workflow";
-import { EventSource } from "eventsource";
+import { EventSource, ErrorEvent as EventSourceErrorEvent } from "eventsource";
 import { LoadOptions } from "../Common/LoadOptions";
 
 export class PocketbaseTrigger implements INodeType {
@@ -16,6 +17,7 @@ export class PocketbaseTrigger implements INodeType {
     group: ["trigger"],
     version: 1,
     description: "Handle Pocketbase events via SSE (Beta)",
+    subtitle: '={{$parameter["collection"]}}',
     defaults: {
       name: "Pocketbase Trigger",
     },
@@ -29,7 +31,7 @@ export class PocketbaseTrigger implements INodeType {
     ],
     properties: [
       {
-        displayName: "Collection Name",
+        displayName: 'Collection Name or ID',
         name: "collection",
         type: "options",
         typeOptions: {
@@ -37,7 +39,7 @@ export class PocketbaseTrigger implements INodeType {
         },
         default: "",
         required: true,
-        description: "The name of the collection to watch for changes",
+        description: 'The name of the collection to watch for changes. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
       },
       {
         displayName: "Events",
@@ -62,6 +64,7 @@ export class PocketbaseTrigger implements INodeType {
         description: "The events to trigger the node",
       },
     ],
+		usableAsTool: true,
   };
 
   methods = {
@@ -108,7 +111,7 @@ function subscribeToPocketbaseSSE(
   const MAX_RECONNECT_ATTEMPTS = 50;
   let consecutiveFailures = 0;
 
-  const onConnect = async (e: any) => {
+  const onConnect = async (e: MessageEvent) => {
     try {
       const data = JSON.parse(e.data as string);
       const clientId = data.clientId;
@@ -143,7 +146,7 @@ function subscribeToPocketbaseSSE(
     }
   };
 
-  const onError = (error: any) => {
+  const onError = (error: EventSourceErrorEvent) => {
     if (stabilityTimer) {
       clearTimeout(stabilityTimer);
       stabilityTimer = null;
@@ -153,12 +156,17 @@ function subscribeToPocketbaseSSE(
       baseUrl,
     });
 
-    const normalizedError = new Error(
-      (error && error.message) || "PocketBase SSE connection failure",
-    );
-    if (error && error.code) (normalizedError as any).code = error.code;
-    if (error && error.status) (normalizedError as any).status = error.status;
-    (normalizedError as any).originalErrorEvent = error;
+    const normalizedError = new Error(error.message || "PocketBase SSE connection failure") as Error & {
+      code?: number;
+      status?: number;
+      originalErrorEvent?: EventSourceErrorEvent;
+    };
+    // `status` isn't part of eventsource's declared ErrorEvent shape, but the
+    // library has been observed attaching it on some HTTP error responses.
+    const status = (error as unknown as { status?: number }).status;
+    if (error.code) normalizedError.code = error.code;
+    if (status) normalizedError.status = status;
+    normalizedError.originalErrorEvent = error;
 
     // Only emit error on the first failure. Subsequent reconnect attempts will not flood the error stream.
     if (consecutiveFailures === 0) {
@@ -168,17 +176,17 @@ function subscribeToPocketbaseSSE(
     reconnect();
   };
 
-  const onMessage = (e: any) => {
+  const onMessage = (e: MessageEvent) => {
     try {
       const data = JSON.parse(e.data as string);
       if (events.includes(data.action) && data.record) {
-        const output = {
+        const output: IDataObject & { __original_action?: unknown; __action?: unknown } = {
           ...data.record,
         };
         if ("action" in output) {
-          (output as any).__original_action = output.action;
+          output.__original_action = output.action;
         }
-        (output as any).__action = data.action;
+        output.__action = data.action;
 
         this.emit([this.helpers.returnJsonArray(output)]);
       }
