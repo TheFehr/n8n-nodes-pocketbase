@@ -38,25 +38,40 @@ async function getLatestN8nVersion() {
       `Failed to fetch n8n version from ${url}: ${response.status} ${response.statusText}`,
     );
   }
-  const data = (await response.json()) as { version: string };
-  return data.version;
+  const data = (await response.json()) as {
+    version: string;
+    dependencies: Record<string, string>;
+  };
+
+  // n8n's own release version and its bundled n8n-workflow dependency version
+  // are two different numbers that don't move in lockstep - peerDependencies
+  // must track the latter, not the former, or npm install can't resolve a
+  // version that satisfies both the peer requirement and what n8n (and
+  // @n8n/node-cli's transitive deps) actually installs.
+  const workflowVersion = data.dependencies["n8n-workflow"];
+  if (!workflowVersion) {
+    throw new Error(`n8n's package metadata at ${url} has no n8n-workflow dependency`);
+  }
+
+  return { n8nVersion: data.version, workflowVersion };
 }
 
-async function updatePackageJson(pbVersion: string, n8nVersion: string, dryRun: boolean) {
+async function updatePackageJson(pbVersion: string, workflowVersion: string, dryRun: boolean) {
   const packageJsonPath = join(process.cwd(), "package.json");
   const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
 
-  const oldN8nVersion = packageJson.peerDependencies["n8n-workflow"];
-  const newN8nVersion = `^${n8nVersion}`;
+  const oldWorkflowVersion = packageJson.n8nWorkflowVersion;
   const oldPbVersion = packageJson.pocketbaseVersion;
 
   let updated = false;
-  if (oldN8nVersion !== newN8nVersion) {
-    console.log(
-      `package.json: peerDependencies.n8n-workflow (${oldN8nVersion} -> ${newN8nVersion})`,
-    );
+  // peerDependencies.n8n-workflow must stay "*" - @n8n/eslint-plugin-community-nodes's
+  // valid-peer-dependencies rule rejects a pinned version, since community nodes must
+  // accept whatever n8n-workflow the host n8n installation provides. Track the latest
+  // synced version separately instead, purely for our own drift-detection purposes.
+  if (oldWorkflowVersion !== workflowVersion) {
+    console.log(`package.json: n8nWorkflowVersion (${oldWorkflowVersion} -> ${workflowVersion})`);
     if (!dryRun) {
-      packageJson.peerDependencies["n8n-workflow"] = newN8nVersion;
+      packageJson.n8nWorkflowVersion = workflowVersion;
     }
     updated = true;
   }
@@ -248,14 +263,14 @@ async function main() {
     const isCheck = process.argv.includes("--check");
 
     const pbVersion = await getLatestPocketbaseVersion();
-    const n8nVersion = await getLatestN8nVersion();
+    const { n8nVersion, workflowVersion } = await getLatestN8nVersion();
 
     console.log(`Latest PocketBase: ${pbVersion}`);
-    console.log(`Latest n8n: ${n8nVersion}`);
+    console.log(`Latest n8n: ${n8nVersion} (n8n-workflow ${workflowVersion})`);
 
     const { packageName, updated: packageUpdated } = await updatePackageJson(
       pbVersion,
-      n8nVersion,
+      workflowVersion,
       isCheck,
     );
     const readmeUpdated = await updateReadme(pbVersion, n8nVersion, packageName, isCheck);
