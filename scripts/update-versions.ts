@@ -220,7 +220,7 @@ async function updateIntegrationTest(packageName: string, dryRun: boolean) {
 
 async function updateNodeJson(packageName: string, dryRun: boolean) {
   const nodeJsonPath = join(process.cwd(), "nodes", "PocketbaseHttp", "PocketbaseHttp.node.json");
-  let content = readFileSync(nodeJsonPath, "utf8");
+  const content = readFileSync(nodeJsonPath, "utf8");
   const nodeJson = JSON.parse(content);
 
   let updated = false;
