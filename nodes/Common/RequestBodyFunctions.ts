@@ -1,10 +1,12 @@
-// eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
+ 
 import FormData from "form-data";
 import {
   AssignmentCollectionValue,
   IDataObject,
   IExecuteSingleFunctions,
   IHttpRequestOptions,
+  INode,
+  NodeOperationError,
 } from "n8n-workflow";
 
 export async function prepareRequestBody(
@@ -37,7 +39,7 @@ export async function prepareRequestBody(
 
     if (bodyType.includes("bodyJson")) {
       const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | Record<string, unknown>;
-      const parsedBody = parseBodyJson(bodyJson);
+      const parsedBody = parseBodyJson(bodyJson, this.getNode());
       const filteredParsedBody: IDataObject = {};
       Object.entries(parsedBody).forEach(([key, value]) => {
         if (
@@ -80,7 +82,7 @@ export async function prepareRequestBody(
 
   if (bodyType.includes("bodyJson")) {
     const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | Record<string, unknown>;
-    const parsedBody = parseBodyJson(bodyJson);
+    const parsedBody = parseBodyJson(bodyJson, this.getNode());
     Object.entries(parsedBody).forEach(([key, value]) => {
       if (
         key &&
@@ -144,7 +146,10 @@ async function handleBinaryData(this: IExecuteSingleFunctions, formData: FormDat
   });
 }
 
-function parseBodyJson(bodyJson: string | Record<string, unknown>): Record<string, unknown> {
+function parseBodyJson(
+  bodyJson: string | Record<string, unknown>,
+  node: INode,
+): Record<string, unknown> {
   if (
     typeof bodyJson !== "string" &&
     (typeof bodyJson !== "object" || bodyJson === null || Array.isArray(bodyJson))
@@ -158,7 +163,7 @@ function parseBodyJson(bodyJson: string | Record<string, unknown>): Record<strin
       parsed = JSON.parse(bodyJson);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Invalid JSON in Body: ${message}`);
+      throw new NodeOperationError(node, `Invalid JSON in Body: ${message}`);
     }
   } else {
     parsed = bodyJson;

@@ -38,6 +38,7 @@ async function loadPocketBaseFields(
     credentials.username as string,
     credentials.password as string,
   );
+  // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- httpRequestWithAuthentication relies on the credential's `authenticate` property, which this project deliberately removed (see commit 8003c58): n8n doesn't reliably invoke it during scheduled executions, causing 403s once the stored JWT expired. fetchPocketbaseToken replaces it with a reliable, cache-aware token fetch.
   const { fields } = (await this.helpers.httpRequest({
     url: `${normalizedUrl}/api/collections/${resource}`,
     method: "GET",
@@ -85,6 +86,7 @@ export const LoadOptions = {
     let totalPages: number = 0;
 
     do {
+      // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- see comment in loadPocketBaseFields above
       const { items: pageItems, totalPages: pageTotalPages } = (await this.helpers.httpRequest({
         url: `${normalizedUrl}/api/collections`,
         method: "GET",
@@ -159,6 +161,7 @@ export const LoadOptions = {
     const maxPages = 5; // Load up to 5 pages for the dropdown
 
     do {
+      // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- see comment in loadPocketBaseFields above
       const { items: pageItems, totalPages: pageTotalPages } = (await this.helpers.httpRequest({
         url: `${normalizedUrl}/api/collections/${resource}/records`,
         method: "GET",
@@ -174,7 +177,7 @@ export const LoadOptions = {
     if (items.length === 0) {
       return [
         {
-          name: "No records found",
+          name: 'No Records Found',
           value: "",
         },
       ];

@@ -2,9 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { pagination } from "../nodes/Common/GenericFunctions";
 import { IExecutePaginationFunctions, DeclarativeRestApiSettings } from "n8n-workflow";
 
+interface MockPaginationThis {
+  getNodeParameter: ReturnType<typeof vi.fn>;
+  makeRoutingRequest: ReturnType<typeof vi.fn>;
+  logger: {
+    debug: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+}
+
 describe("GenericFunctions", () => {
   describe("pagination", () => {
-    let mockThis: any;
+    let mockThis: MockPaginationThis;
 
     beforeEach(() => {
       vi.clearAllMocks();
@@ -20,7 +30,7 @@ describe("GenericFunctions", () => {
     });
 
     it("should handle normal pagination correctly", async () => {
-      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: any) => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
         if (name === "parameters.allElements") return true;
         if (name === "parameters.page") return 1;
         return defaultValue;
@@ -64,7 +74,7 @@ describe("GenericFunctions", () => {
     });
 
     it("should break early and log warning if items.length === 0 even if page < totalPages", async () => {
-      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: any) => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
         if (name === "parameters.allElements") return true;
         if (name === "parameters.page") return 1;
         return defaultValue;
@@ -100,7 +110,7 @@ describe("GenericFunctions", () => {
     });
 
     it("should not log warning if items.length === 0 and page === totalPages", async () => {
-      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: any) => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
         if (name === "parameters.allElements") return true;
         if (name === "parameters.page") return 1;
         return defaultValue;
@@ -129,7 +139,7 @@ describe("GenericFunctions", () => {
     });
 
     it("should throw error if maxPages exceeded", async () => {
-      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: any) => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
         if (name === "parameters.allElements") return true;
         if (name === "parameters.page") return 1001;
         return defaultValue;
@@ -147,7 +157,7 @@ describe("GenericFunctions", () => {
     });
 
     it("should not throw error if page === 1000", async () => {
-      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: any) => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
         if (name === "parameters.allElements") return true;
         if (name === "parameters.page") return 1000;
         return defaultValue;
@@ -173,7 +183,7 @@ describe("GenericFunctions", () => {
     });
 
     it("should not apply page limit if allElements is false", async () => {
-      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: any) => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
         if (name === "parameters.allElements") return false;
         if (name === "parameters.page") return 2000;
         return defaultValue;

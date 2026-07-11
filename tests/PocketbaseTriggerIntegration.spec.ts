@@ -30,9 +30,16 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
 
     // 2. Setup Trigger Node
     const node = new PocketbaseTrigger();
-    let triggeredData: any = null;
+    let triggeredData: unknown[] | null = null;
 
-    const triggerFunctions: any = {
+    interface MockHttpRequestOptions {
+      url: string;
+      method: string;
+      headers?: Record<string, string>;
+      body?: unknown;
+    }
+
+    const triggerFunctions = {
       getCredentials: async () => ({ url: baseUrl, token }),
       getNodeParameter: (name: string) => {
         if (name === "collection") return "users";
@@ -40,7 +47,7 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
         return undefined;
       },
       helpers: {
-        httpRequestWithAuthentication: async (cred: string, options: any) => {
+        httpRequestWithAuthentication: async (cred: string, options: MockHttpRequestOptions) => {
           const res = await fetch(options.url, {
             method: options.method,
             headers: {
@@ -64,9 +71,9 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
           }
           return { body: await res.text() };
         },
-        returnJsonArray: (data: any) => [{ json: data }],
+        returnJsonArray: (data: unknown) => [{ json: data }],
       },
-      emit: (data: any) => {
+      emit: (data: unknown[]) => {
         triggeredData = data;
       },
       logger: {
@@ -75,7 +82,7 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
         debug: console.debug,
         warn: console.warn,
       },
-      emitError: (err: any) => {
+      emitError: (err: unknown) => {
         console.error("Trigger emitted error:", err);
       },
     };
@@ -126,8 +133,8 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
         "Timeout waiting for Pocketbase trigger: triggeredData not set after 20s",
       ).toBeDefined();
       expect(triggeredData).toHaveLength(1);
-      expect(triggeredData[0]).toHaveLength(1);
-      expect(triggeredData[0][0].json.email).toBe(uniqueEmail);
+      expect(triggeredData![0]).toHaveLength(1);
+      expect((triggeredData![0] as { json: { email: string } }[])[0].json.email).toBe(uniqueEmail);
     } finally {
       if (createdRecordId) {
         const deleteRes = await fetch(

@@ -57,6 +57,20 @@ export class PocketbaseHttp implements INodeType {
         type: "options",
         options: [
           {
+            name: "Create",
+            value: "create",
+            action: "Create an element in your collection",
+            routing: {
+              request: {
+                method: "POST",
+                url: `=/api/collections/{{$parameter["resource"]}}/records`,
+              },
+              send: {
+                preSend: [authenticatePreSend, recordCreatePreSendAction],
+              },
+            },
+          },
+          {
             name: "List/Search",
             value: "search",
             action: "List or search your collection",
@@ -76,34 +90,6 @@ export class PocketbaseHttp implements INodeType {
             },
           },
           {
-            name: "View",
-            value: "view",
-            action: "View an element in your collection",
-            routing: {
-              request: {
-                method: "GET",
-                url: `=/api/collections/{{$parameter["resource"]}}/records/{{$parameter["elementId"]}}`,
-              },
-              send: {
-                preSend: [authenticatePreSend, recordViewPreSendAction],
-              },
-            },
-          },
-          {
-            name: "Create",
-            value: "create",
-            action: "Create an element in your collection",
-            routing: {
-              request: {
-                method: "POST",
-                url: `=/api/collections/{{$parameter["resource"]}}/records`,
-              },
-              send: {
-                preSend: [authenticatePreSend, recordCreatePreSendAction],
-              },
-            },
-          },
-          {
             name: "Update",
             value: "update",
             action: "Update an element in your collection",
@@ -114,6 +100,20 @@ export class PocketbaseHttp implements INodeType {
               },
               send: {
                 preSend: [authenticatePreSend, recordUpdatePreSendAction],
+              },
+            },
+          },
+          {
+            name: "View",
+            value: "view",
+            action: "View an element in your collection",
+            routing: {
+              request: {
+                method: "GET",
+                url: `=/api/collections/{{$parameter["resource"]}}/records/{{$parameter["elementId"]}}`,
+              },
+              send: {
+                preSend: [authenticatePreSend, recordViewPreSendAction],
               },
             },
           },

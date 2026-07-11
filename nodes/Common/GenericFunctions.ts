@@ -102,7 +102,7 @@ export async function pagination(
   requestOptions: DeclarativeRestApiSettings.ResultOptions,
 ): Promise<INodeExecutionData[]> {
   const allIsActive = this.getNodeParameter("parameters.allElements", false) as boolean;
-  let executions: INodeExecutionData[] = [];
+  const executions: INodeExecutionData[] = [];
   let page: number = this.getNodeParameter("parameters.page", 1) as number;
   let totalPages: number = allIsActive ? Infinity : page;
 
