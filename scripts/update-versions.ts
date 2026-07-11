@@ -40,7 +40,7 @@ async function getLatestN8nVersion() {
   }
   const data = (await response.json()) as {
     version: string;
-    dependencies: Record<string, string>;
+    dependencies?: Record<string, string>;
   };
 
   // n8n's own release version and its bundled n8n-workflow dependency version
@@ -48,7 +48,7 @@ async function getLatestN8nVersion() {
   // must track the latter, not the former, or npm install can't resolve a
   // version that satisfies both the peer requirement and what n8n (and
   // @n8n/node-cli's transitive deps) actually installs.
-  const workflowVersion = data.dependencies["n8n-workflow"];
+  const workflowVersion = data.dependencies?.["n8n-workflow"];
   if (!workflowVersion) {
     throw new Error(`n8n's package metadata at ${url} has no n8n-workflow dependency`);
   }
