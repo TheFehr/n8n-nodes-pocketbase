@@ -81,9 +81,10 @@ describe("RequestBodyFunctions", () => {
       } as unknown as IExecuteSingleFunctions;
 
       const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
-      await expect(prepareRequestBody.call(mockThis, requestOptions)).rejects.toThrow(
-        "JSON Body must be a JSON object",
-      );
+      await expect(prepareRequestBody.call(mockThis, requestOptions)).rejects.toMatchObject({
+        message: expect.stringContaining("JSON Body must be a JSON object"),
+        constructor: NodeOperationError,
+      });
     });
 
     it("should parse and append bodyJson correctly in Multipart mode, converting null to 'null' string and removing stale Content-Type", async () => {

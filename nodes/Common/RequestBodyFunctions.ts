@@ -154,7 +154,7 @@ function parseBodyJson(
     typeof bodyJson !== "string" &&
     (typeof bodyJson !== "object" || bodyJson === null || Array.isArray(bodyJson))
   ) {
-    throw new Error("JSON Body must be a JSON object or string");
+    throw new NodeOperationError(node, "JSON Body must be a JSON object or string");
   }
 
   let parsed: unknown;
@@ -170,7 +170,7 @@ function parseBodyJson(
   }
 
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new Error("JSON Body must be a JSON object");
+    throw new NodeOperationError(node, "JSON Body must be a JSON object");
   }
 
   return parsed as Record<string, unknown>;
