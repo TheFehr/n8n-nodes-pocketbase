@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { prepareRequestBody } from "../nodes/Common/RequestBodyFunctions";
-import { IExecuteSingleFunctions, IHttpRequestOptions } from "n8n-workflow";
+import { IExecuteSingleFunctions, IHttpRequestOptions, NodeOperationError } from "n8n-workflow";
 import FormData from "form-data";
 
 describe("RequestBodyFunctions", () => {
@@ -64,9 +64,10 @@ describe("RequestBodyFunctions", () => {
       } as unknown as IExecuteSingleFunctions;
 
       const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
-      await expect(prepareRequestBody.call(mockThis, requestOptions)).rejects.toThrow(
-        "Invalid JSON in Body",
-      );
+      await expect(prepareRequestBody.call(mockThis, requestOptions)).rejects.toMatchObject({
+        message: expect.stringContaining("Invalid JSON in Body"),
+        constructor: NodeOperationError,
+      });
     });
 
     it("should throw error if bodyJson is not an object", async () => {
