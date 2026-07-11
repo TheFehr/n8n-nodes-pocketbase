@@ -56,26 +56,22 @@ async function getLatestN8nVersion() {
   return { n8nVersion: data.version, workflowVersion };
 }
 
-async function updatePackageJson(
-  pbVersion: string,
-  n8nVersion: string,
-  workflowVersion: string,
-  dryRun: boolean,
-) {
+async function updatePackageJson(pbVersion: string, workflowVersion: string, dryRun: boolean) {
   const packageJsonPath = join(process.cwd(), "package.json");
   const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
 
-  const oldN8nVersion = packageJson.peerDependencies["n8n-workflow"];
-  const newN8nVersion = `^${workflowVersion}`;
+  const oldWorkflowVersion = packageJson.n8nWorkflowVersion;
   const oldPbVersion = packageJson.pocketbaseVersion;
 
   let updated = false;
-  if (oldN8nVersion !== newN8nVersion) {
-    console.log(
-      `package.json: peerDependencies.n8n-workflow (${oldN8nVersion} -> ${newN8nVersion})`,
-    );
+  // peerDependencies.n8n-workflow must stay "*" - @n8n/eslint-plugin-community-nodes's
+  // valid-peer-dependencies rule rejects a pinned version, since community nodes must
+  // accept whatever n8n-workflow the host n8n installation provides. Track the latest
+  // synced version separately instead, purely for our own drift-detection purposes.
+  if (oldWorkflowVersion !== workflowVersion) {
+    console.log(`package.json: n8nWorkflowVersion (${oldWorkflowVersion} -> ${workflowVersion})`);
     if (!dryRun) {
-      packageJson.peerDependencies["n8n-workflow"] = newN8nVersion;
+      packageJson.n8nWorkflowVersion = workflowVersion;
     }
     updated = true;
   }
@@ -274,7 +270,6 @@ async function main() {
 
     const { packageName, updated: packageUpdated } = await updatePackageJson(
       pbVersion,
-      n8nVersion,
       workflowVersion,
       isCheck,
     );
