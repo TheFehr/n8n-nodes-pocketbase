@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { prepareRequestBody } from "../nodes/Common/RequestBodyFunctions";
-import { IExecuteSingleFunctions, IHttpRequestOptions } from "n8n-workflow";
+import { IExecuteSingleFunctions, IHttpRequestOptions, NodeOperationError } from "n8n-workflow";
 import FormData from "form-data";
 
 describe("RequestBodyFunctions", () => {
@@ -11,6 +11,7 @@ describe("RequestBodyFunctions", () => {
 
     it("should parse and assign bodyJson correctly in JSON mode", async () => {
       const mockThis = {
+        getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
         getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
           if (name === "bodyType") return ["bodyJson"];
           if (name === "bodyJson") return '{"a": 1}';
@@ -30,6 +31,7 @@ describe("RequestBodyFunctions", () => {
 
     it("should preserve nested objects and include null values in bodyJson in JSON mode", async () => {
       const mockThis = {
+        getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
         getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
           if (name === "bodyType") return ["bodyJson"];
           if (name === "bodyJson") return '{"a": 1, "b": {"c": 2}, "": "empty", " ": "whitespace", "nullVal": null}';
@@ -53,6 +55,7 @@ describe("RequestBodyFunctions", () => {
 
     it("should throw error for invalid JSON in bodyJson", async () => {
       const mockThis = {
+        getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
         getNodeParameter: vi.fn().mockImplementation((name) => {
           if (name === "bodyType") return ["bodyJson"];
           if (name === "bodyJson") return "{invalid}";
@@ -66,8 +69,62 @@ describe("RequestBodyFunctions", () => {
       );
     });
 
+    it("should throw a NodeOperationError (not a plain Error) for invalid JSON so n8n can attribute it to the node", async () => {
+      const node = { name: "Pocketbase", type: "test.pocketbase" };
+      const mockThis = {
+        getNode: vi.fn(() => node),
+        getNodeParameter: vi.fn().mockImplementation((name) => {
+          if (name === "bodyType") return ["bodyJson"];
+          if (name === "bodyJson") return "{invalid}";
+          return undefined;
+        }),
+      } as unknown as IExecuteSingleFunctions;
+
+      const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
+
+      let caught: unknown;
+      try {
+        await prepareRequestBody.call(mockThis, requestOptions);
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(NodeOperationError);
+      expect((caught as NodeOperationError).message).toContain("Invalid JSON in Body");
+      expect(mockThis.getNode).toHaveBeenCalled();
+    });
+
+    it("should throw a NodeOperationError for invalid JSON in bodyJson when in Multipart mode", async () => {
+      const node = { name: "Pocketbase", type: "test.pocketbase" };
+      const mockThis = {
+        getNode: vi.fn(() => node),
+        getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
+          if (name === "bodyType") return ["bodyJson", "binaryData"];
+          if (name === "bodyJson") return "{invalid}";
+          return defaultValue;
+        }),
+        logger: {
+          info: vi.fn(),
+          debug: vi.fn(),
+        },
+        helpers: {
+          assertBinaryData: vi
+            .fn()
+            .mockReturnValue({ mimeType: "text/plain", fileName: "test.txt" }),
+          getBinaryDataBuffer: vi.fn().mockResolvedValue(Buffer.from("hello")),
+        },
+      } as unknown as IExecuteSingleFunctions;
+
+      const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
+
+      await expect(prepareRequestBody.call(mockThis, requestOptions)).rejects.toBeInstanceOf(
+        NodeOperationError,
+      );
+    });
+
     it("should throw error if bodyJson is not an object", async () => {
       const mockThis = {
+        getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
         getNodeParameter: vi.fn().mockImplementation((name) => {
           if (name === "bodyType") return ["bodyJson"];
           if (name === "bodyJson") return '"string"';
@@ -84,6 +141,7 @@ describe("RequestBodyFunctions", () => {
     it("should parse and append bodyJson correctly in Multipart mode, converting null to 'null' string and removing stale Content-Type", async () => {
       const appendSpy = vi.spyOn(FormData.prototype, "append");
       const mockThis = {
+        getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
         getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
           if (name === "bodyType") return ["bodyJson", "binaryData"];
           if (name === "bodyJson") return '{"a": 1, "b": {"c": 2}, "nullVal": null}';
@@ -133,6 +191,7 @@ describe("RequestBodyFunctions", () => {
         assignments: [
           { name: "", value: "empty name" },
           { name: "  ", value: "whitespace name" },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately violates the declared string type to test the runtime guard against malformed input
           { name: 123 as any, value: "non-string name" },
           { name: "nullValue", value: null },
           { name: "undefinedValue", value: undefined },
@@ -143,6 +202,7 @@ describe("RequestBodyFunctions", () => {
 
       it("should trim field names in JSON mode", async () => {
         const mockThis = {
+          getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
           getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
             if (name === "bodyType") return ["fields"];
             if (name === "fields") return { assignments: [{ name: "  trimmedKey  ", value: "value" }] };
@@ -162,6 +222,7 @@ describe("RequestBodyFunctions", () => {
 
       it("should trim JSON keys in JSON mode", async () => {
         const mockThis = {
+          getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
           getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
             if (name === "bodyType") return ["bodyJson"];
             if (name === "bodyJson") return '{"  jsonKey  ": "value"}';
@@ -180,6 +241,7 @@ describe("RequestBodyFunctions", () => {
       });
       it("should filter invalid entries and include null as null in JSON mode", async () => {
         const mockThis = {
+          getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
           getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
             if (name === "bodyType") return ["fields"];
             if (name === "fields") return fields;
@@ -204,6 +266,7 @@ describe("RequestBodyFunctions", () => {
       it("should filter invalid entries and convert null to 'null' string in Multipart mode", async () => {
         const appendSpy = vi.spyOn(FormData.prototype, "append");
         const mockThis = {
+          getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
           getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
             if (name === "bodyType") return ["fields", "binaryData"];
             if (name === "fields") return fields;
