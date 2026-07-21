@@ -35,7 +35,7 @@
     "prepublishOnly": "n8n-node prerelease"
   },
   "devDependencies": {
-    "@n8n/node-cli": "^0.39.0",
+    "@n8n/node-cli": "^0.40.0",
     "@release-it/conventional-changelog": "^11.0.0",
     "esbuild": "^0.28.1",
     "eventsource": "^4.1.0",
