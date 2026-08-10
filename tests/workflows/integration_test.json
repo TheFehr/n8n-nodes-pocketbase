@@ -105,6 +105,23 @@
           "id": "pocketbase-cred-id"
         }
       }
+    },
+    {
+      "parameters": {
+        "resource": "users",
+        "operation": "delete",
+        "elementId": "={{$node[\"Pocketbase Update\"].json[\"id\"]}}"
+      },
+      "id": "6",
+      "name": "Pocketbase Delete",
+      "type": "n8n-nodes-pocketbase.pocketbaseHttp",
+      "typeVersion": 1,
+      "position": [1100, 100],
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
     }
   ],
   "connections": {
@@ -153,6 +170,17 @@
       ]
     },
     "Pocketbase List": {
+      "main": [
+        [
+          {
+            "node": "Pocketbase Delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pocketbase Delete": {
       "main": [[]]
     }
   }
