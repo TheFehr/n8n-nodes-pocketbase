@@ -1,4 +1,4 @@
-name: Nightly Compatibility Check
+name: Nightly Compatibility Check & Release
 
 on:
   push:
@@ -6,6 +6,10 @@ on:
       - main
   schedule:
     - cron: "34 1 * * *"
+  # Manual runs always produce a release, even with no pending compatibility
+  # drift — use this to ship a patch release of whatever is currently on
+  # main (e.g. after merging feature/test PRs) without waiting for the
+  # nightly cron to find an n8n/PocketBase version bump.
   workflow_dispatch:
 
 jobs:
@@ -76,6 +80,19 @@ jobs:
             echo "updates_found=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # Manual runs (workflow_dispatch) always release, regardless of whether
+      # a compatibility drift was found; scheduled/cron runs only release
+      # when version:check above actually found something to update.
+      - name: Determine whether to release
+        id: should_release
+        if: github.event_name != 'push'
+        run: |
+          if [ "${{ steps.check_updates.outputs.updates_found }}" = "true" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Update files
         if: steps.check_updates.outputs.updates_found == 'true'
         run: |
@@ -83,11 +100,11 @@ jobs:
           npm install
 
       - name: Run pipeline
-        if: steps.check_updates.outputs.updates_found == 'true'
+        if: steps.should_release.outputs.value == 'true'
         run: npm run test:pipeline
 
       - name: Bump patch version and changelog
-        if: steps.check_updates.outputs.updates_found == 'true'
+        if: steps.should_release.outputs.value == 'true'
         id: bump
         run: |
           npm version patch --no-git-tag-version --allow-same-version > /dev/null
@@ -97,20 +114,20 @@ jobs:
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Ensure release label exists
-        if: steps.check_updates.outputs.updates_found == 'true'
+        if: steps.should_release.outputs.value == 'true'
         env:
           GH_TOKEN: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
         run: gh label create release --color 0e8a16 --description "Automated release PR" 2>/dev/null || true
 
       - name: Create Pull Request
-        if: steps.check_updates.outputs.updates_found == 'true'
+        if: steps.should_release.outputs.value == 'true'
         id: cpr
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
           commit-message: "Release ${{ steps.bump.outputs.new_version }}"
           title: "Release ${{ steps.bump.outputs.new_version }}"
-          body: "Automated nightly compatibility updates. Merging tags and publishes ${{ steps.bump.outputs.new_version }} to npm."
+          body: "Automated release. Merging tags and publishes ${{ steps.bump.outputs.new_version }} to npm."
           branch: nightly-updates
           base: main
           delete-branch: true
