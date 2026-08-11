@@ -93,7 +93,10 @@
     {
       "parameters": {
         "resource": "users",
-        "operation": "search"
+        "operation": "search",
+        "parameters": {
+          "filter": "=id = '{{$node[\"Pocketbase Update\"].json[\"id\"]}}'"
+        }
       },
       "id": "5",
       "name": "Pocketbase List",
