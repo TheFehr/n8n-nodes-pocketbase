@@ -131,6 +131,11 @@ if ! echo "$PB_LOGS" | grep -iq "UPDATE .*users.*Updated User"; then
   VERIFIED=false
 fi
 
+if ! echo "$PB_LOGS" | grep -qE "DELETE /api/collections/users/records/"; then
+  echo "❌ Verification failed: 'DELETE /api/collections/users/records/' (user delete) not found in logs."
+  VERIFIED=false
+fi
+
 if [ "$VERIFIED" = "true" ]; then
   echo "✅ Verification successful: Specific CRUD patterns and data found in PocketBase logs!"
 else

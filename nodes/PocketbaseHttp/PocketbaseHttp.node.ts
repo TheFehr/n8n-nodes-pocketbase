@@ -71,6 +71,20 @@ export class PocketbaseHttp implements INodeType {
             },
           },
           {
+            name: "Delete",
+            value: "delete",
+            action: "Delete an element in your collection",
+            routing: {
+              request: {
+                method: "DELETE",
+                url: `=/api/collections/{{$parameter["resource"]}}/records/{{$parameter["elementId"]}}`,
+              },
+              send: {
+                preSend: [authenticatePreSend],
+              },
+            },
+          },
+          {
             name: "List/Search",
             value: "search",
             action: "List or search your collection",
@@ -135,7 +149,7 @@ export class PocketbaseHttp implements INodeType {
         default: "",
         displayOptions: {
           show: {
-            operation: ["view", "update"],
+            operation: ["view", "update", "delete"],
           },
         },
       },
