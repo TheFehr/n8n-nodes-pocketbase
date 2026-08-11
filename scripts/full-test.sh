@@ -48,6 +48,13 @@ echo "Package name: $PACKAGE_NAME"
 echo "Building nodes..."
 npm run build
 
+# Ensure a clean slate: if a previous run was killed before its exit trap
+# could tear down volumes, stale PocketBase/n8n data (e.g. leftover workflow
+# IDs, or the duptest@example.com record the duplicate-email test relies on
+# being absent) could cause spurious failures in this run.
+echo "Ensuring a clean Docker Compose state..."
+docker compose -f docker-compose.test.yml down -v --remove-orphans 2>/dev/null || true
+
 # Spin up services
 docker compose -f docker-compose.test.yml up -d
 
