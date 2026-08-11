@@ -7,6 +7,8 @@ if command -v fnm &>/dev/null; then
 fi
 
 # EXIT trap for teardown
+ISOLATED_OUTPUT_FILES="expired_token_output.txt notfound_error_output.txt validation_error_output.txt duplicate_error_output.txt"
+
 on_exit() {
 	EXIT_CODE=$?
 	if [ $EXIT_CODE -ne 0 ]; then
@@ -16,18 +18,20 @@ on_exit() {
 			cat workflow_output.txt
 			echo "--------------------------------"
 		fi
-		if [ -f expired_token_output.txt ]; then
-			echo "--- Expired Token Test Output ---"
-			cat expired_token_output.txt
-			echo "--------------------------------"
-		fi
+		for f in $ISOLATED_OUTPUT_FILES; do
+			if [ -f "$f" ]; then
+				echo "--- $f ---"
+				cat "$f"
+				echo "--------------------------------"
+			fi
+		done
 		echo "--- PocketBase Logs ---"
 		docker compose -f docker-compose.test.yml logs pocketbase
 		echo "-----------------------"
 	fi
 	echo "Cleaning up..."
 	docker compose -f docker-compose.test.yml down -v
-	rm -f workflow_output.txt expired_token_output.txt
+	rm -f workflow_output.txt $ISOLATED_OUTPUT_FILES
 	exit $EXIT_CODE
 }
 trap on_exit EXIT
@@ -43,6 +47,13 @@ echo "Package name: $PACKAGE_NAME"
 # Build nodes
 echo "Building nodes..."
 npm run build
+
+# Ensure a clean slate: if a previous run was killed before its exit trap
+# could tear down volumes, stale PocketBase/n8n data (e.g. leftover workflow
+# IDs, or the duptest@example.com record the duplicate-email test relies on
+# being absent) could cause spurious failures in this run.
+echo "Ensuring a clean Docker Compose state..."
+docker compose -f docker-compose.test.yml down -v --remove-orphans 2>/dev/null || true
 
 # Spin up services
 docker compose -f docker-compose.test.yml up -d
@@ -102,6 +113,9 @@ docker compose -f docker-compose.test.yml run --rm \
     n8n import:credentials --input=/home/node/custom-nodes/tests/workflows/integration_credentials_expired.json && \
     n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_test.json && \
     n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_expired_token_test.json && \
+    n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_error_notfound_test.json && \
+    n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_error_validation_test.json && \
+    n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_error_duplicate_test.json && \
     n8n execute --id=1
 " > workflow_output.txt 2>&1
 
@@ -144,33 +158,71 @@ else
   exit 1
 fi
 
-# Process 2: completely fresh n8n process — no shared memory, DB persisted via volume.
-# This simulates a scheduled execution that starts cold with an expired stored token.
-echo ""
-echo "--- Expired Token Refresh Test (process 2, isolated) ---"
-set +e
-docker compose -f docker-compose.test.yml run --rm \
-  --entrypoint /bin/sh n8n -c "
-    mkdir -p /home/node/.n8n/nodes/node_modules && \
-    rm -f \"/home/node/.n8n/nodes/node_modules/$PACKAGE_NAME\" && \
-    ln -sf /home/node/custom-nodes \"/home/node/.n8n/nodes/node_modules/$PACKAGE_NAME\" && \
-    n8n execute --id=2
-" > expired_token_output.txt 2>&1
-EXPIRED_EXIT=$?
-set -e
+# Process 2+: each runs in a completely fresh n8n process — no shared memory,
+# DB persisted via volume. This simulates a cold-started scheduled execution
+# and is also how we isolate error-path workflows from the main CRUD chain
+# (n8n aborts a workflow on the first node error, so a failing node can't
+# share a workflow with the happy-path assertions above).
+run_isolated_workflow() {
+  local id=$1
+  local output_file=$2
+  set +e
+  docker compose -f docker-compose.test.yml run --rm \
+    --entrypoint /bin/sh n8n -c "
+      mkdir -p /home/node/.n8n/nodes/node_modules && \
+      rm -f \"/home/node/.n8n/nodes/node_modules/$PACKAGE_NAME\" && \
+      ln -sf /home/node/custom-nodes \"/home/node/.n8n/nodes/node_modules/$PACKAGE_NAME\" && \
+      n8n execute --id=$id
+  " > "$output_file" 2>&1
+  local exit_code=$?
+  set -e
+  return $exit_code
+}
 
-if [ $EXPIRED_EXIT -eq 0 ] && grep -q '"status": *"success"' expired_token_output.txt 2>/dev/null; then
-  echo "✅ Workflow with expired token SUCCEEDED in isolated process"
-  echo "   Token was refreshed via preSend without any shared in-memory state"
-else
-  echo "❌ Workflow with expired token FAILED in isolated process"
+expect_isolated_success() {
+  local id=$1 label=$2 output_file=$3
   echo ""
-  echo "   n8n output (last 20 lines, excluding sourcemap noise):"
-  grep -v "Sourcemap" expired_token_output.txt | tail -20 | sed 's/^/   /'
+  echo "--- $label (isolated) ---"
+  local exit_code=0
+  run_isolated_workflow "$id" "$output_file" || exit_code=$?
+  if [ $exit_code -eq 0 ] && grep -q '"status": *"success"' "$output_file" 2>/dev/null; then
+    echo "✅ $label SUCCEEDED as expected"
+  else
+    echo "❌ $label did not succeed as expected (exit $exit_code)"
+    echo "   n8n output (last 20 lines, excluding sourcemap noise):"
+    grep -v "Sourcemap" "$output_file" | tail -20 | sed 's/^/   /'
+    echo "--------------------------------------------------------"
+    exit 1
+  fi
   echo "--------------------------------------------------------"
-  exit 1
-fi
-echo "--------------------------------------------------------"
+}
+
+expect_isolated_failure() {
+  local id=$1 label=$2 output_file=$3 expected_substring=$4
+  echo ""
+  echo "--- $label (isolated) ---"
+  local exit_code=0
+  run_isolated_workflow "$id" "$output_file" || exit_code=$?
+  if [ $exit_code -ne 0 ] && grep -qi "$expected_substring" "$output_file" 2>/dev/null; then
+    echo "✅ $label FAILED as expected (exit $exit_code), matched: \"$expected_substring\""
+  else
+    echo "❌ $label did not fail as expected (exit $exit_code); expected output to contain: \"$expected_substring\""
+    echo "   n8n output (last 20 lines, excluding sourcemap noise):"
+    grep -v "Sourcemap" "$output_file" | tail -20 | sed 's/^/   /'
+    echo "--------------------------------------------------------"
+    exit 1
+  fi
+  echo "--------------------------------------------------------"
+}
+
+# This simulates a scheduled execution that starts cold with an expired stored token;
+# a successful run proves the token was refreshed via preSend without any shared
+# in-memory state.
+expect_isolated_success 2 "Expired Token Refresh Test" expired_token_output.txt
+
+expect_isolated_failure 3 "Not Found Error Test" notfound_error_output.txt "wasn't found"
+expect_isolated_failure 4 "Validation Error Test" validation_error_output.txt "Values don't match"
+expect_isolated_failure 5 "Duplicate Field Error Test" duplicate_error_output.txt "Value must be unique"
 
 # Run unit and integration tests
 export RUN_POCKETBASE_INTEGRATION="true"

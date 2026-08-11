@@ -1,0 +1,64 @@
+{
+  "id": "4",
+  "name": "Pocketbase Validation Error Test Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 100]
+    },
+    {
+      "parameters": {
+        "resource": "users",
+        "operation": "create",
+        "bodyType": ["fields"],
+        "fields": {
+          "assignments": [
+            {
+              "name": "username",
+              "value": "=pwmismatch{{$now.toMillis()}}"
+            },
+            {
+              "name": "email",
+              "value": "=pwmismatch{{$now.toMillis()}}@example.com"
+            },
+            {
+              "name": "password",
+              "value": "password123"
+            },
+            {
+              "name": "passwordConfirm",
+              "value": "different456"
+            }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Pocketbase Create With Mismatched Passwords",
+      "type": "n8n-nodes-pocketbase.pocketbaseHttp",
+      "typeVersion": 1,
+      "position": [300, 100],
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [
+        [
+          {
+            "node": "Pocketbase Create With Mismatched Passwords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
