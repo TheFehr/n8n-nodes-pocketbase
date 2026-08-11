@@ -87,6 +87,84 @@ describe("RequestBodyFunctions", () => {
       });
     });
 
+    it("should throw error if bodyJson is neither a string nor an object", async () => {
+      const mockThis = {
+        getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
+        getNodeParameter: vi.fn().mockImplementation((name) => {
+          if (name === "bodyType") return ["bodyJson"];
+          if (name === "bodyJson") return 123;
+          return undefined;
+        }),
+      } as unknown as IExecuteSingleFunctions;
+
+      const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
+      await expect(prepareRequestBody.call(mockThis, requestOptions)).rejects.toMatchObject({
+        message: expect.stringContaining("JSON Body must be a JSON object or string"),
+        constructor: NodeOperationError,
+      });
+    });
+
+    describe("binaryData errors", () => {
+      it("should throw a plain Error if no binaryPropertyName is provided", async () => {
+        const mockThis = {
+          getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
+          getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
+            if (name === "bodyType") return ["binaryData"];
+            if (name === "binaryPropertyName") return "";
+            return defaultValue;
+          }),
+          logger: {
+            info: vi.fn(),
+            debug: vi.fn(),
+          },
+          helpers: {
+            assertBinaryData: vi.fn(),
+            getBinaryDataBuffer: vi.fn(),
+          },
+        } as unknown as IExecuteSingleFunctions;
+
+        const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
+        let thrown: unknown;
+        try {
+          await prepareRequestBody.call(mockThis, requestOptions);
+        } catch (error) {
+          thrown = error;
+        }
+
+        expect(thrown).toBeInstanceOf(Error);
+        expect(thrown).not.toBeInstanceOf(NodeOperationError);
+        expect((thrown as Error).message).toContain(
+          "Binary data selected but no property name provided",
+        );
+      });
+
+      it("should propagate the error thrown by assertBinaryData when the binary property is missing", async () => {
+        const mockThis = {
+          getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
+          getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
+            if (name === "bodyType") return ["binaryData"];
+            if (name === "binaryPropertyName") return "data";
+            return defaultValue;
+          }),
+          logger: {
+            info: vi.fn(),
+            debug: vi.fn(),
+          },
+          helpers: {
+            assertBinaryData: vi.fn(() => {
+              throw new Error("No binary data property 'data' exists on item.");
+            }),
+            getBinaryDataBuffer: vi.fn(),
+          },
+        } as unknown as IExecuteSingleFunctions;
+
+        const requestOptions: IHttpRequestOptions = { url: "http://test.com", method: "POST" };
+        await expect(prepareRequestBody.call(mockThis, requestOptions)).rejects.toThrow(
+          "No binary data property 'data' exists on item.",
+        );
+      });
+    });
+
     it("should parse and append bodyJson correctly in Multipart mode, converting null to 'null' string and removing stale Content-Type", async () => {
       const appendSpy = vi.spyOn(FormData.prototype, "append");
       const mockThis = {

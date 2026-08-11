@@ -207,5 +207,108 @@ describe("GenericFunctions", () => {
       await pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions);
       expect(mockThis.makeRoutingRequest).toHaveBeenCalled();
     });
+
+    it("should throw error if response body is not an object", async () => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
+        if (name === "parameters.allElements") return false;
+        if (name === "parameters.page") return 1;
+        return defaultValue;
+      });
+
+      mockThis.makeRoutingRequest.mockResolvedValueOnce([{ json: null }]);
+
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
+      await expect(
+        pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions),
+      ).rejects.toThrow("Invalid response from PocketBase");
+    });
+
+    it("should throw error if page is missing from the first response", async () => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
+        if (name === "parameters.allElements") return false;
+        if (name === "parameters.page") return 1;
+        return defaultValue;
+      });
+
+      mockThis.makeRoutingRequest.mockResolvedValueOnce([
+        { json: { totalPages: 1, items: [] } },
+      ]);
+
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
+      await expect(
+        pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions),
+      ).rejects.toThrow("Missing or invalid page in PocketBase response");
+    });
+
+    it("should throw error if returned page does not match requested page", async () => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
+        if (name === "parameters.allElements") return false;
+        if (name === "parameters.page") return 1;
+        return defaultValue;
+      });
+
+      mockThis.makeRoutingRequest.mockResolvedValueOnce([
+        { json: { page: 2, totalPages: 2, items: [] } },
+      ]);
+
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
+      await expect(
+        pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions),
+      ).rejects.toThrow("PocketBase returned page 2 but we requested 1");
+    });
+
+    it("should throw error if totalPages is missing while fetching all elements", async () => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
+        if (name === "parameters.allElements") return true;
+        if (name === "parameters.page") return 1;
+        return defaultValue;
+      });
+
+      mockThis.makeRoutingRequest.mockResolvedValueOnce([{ json: { page: 1, items: [] } }]);
+
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
+      await expect(
+        pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions),
+      ).rejects.toThrow("Missing or invalid totalPages in PocketBase response");
+    });
+
+    it("should throw error if items is not an array", async () => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
+        if (name === "parameters.allElements") return false;
+        if (name === "parameters.page") return 1;
+        return defaultValue;
+      });
+
+      mockThis.makeRoutingRequest.mockResolvedValueOnce([
+        { json: { page: 1, items: "not-an-array" } },
+      ]);
+
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
+      await expect(
+        pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions),
+      ).rejects.toThrow(
+        "PocketBase response for page 1 (of 1) did not contain an items array",
+      );
+    });
   });
 });
