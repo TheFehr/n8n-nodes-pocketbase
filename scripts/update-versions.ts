@@ -294,8 +294,12 @@ async function main() {
       console.log("\nEverything is up to date.");
     }
   } catch (error) {
+    // Exit 2 (not 1) so callers can tell a genuine script failure (e.g. a
+    // transient GitHub/npm API error) apart from exit 1's "confirmed
+    // drift found" in --check mode - callers must not treat the two as
+    // the same "there is drift" signal.
     console.error("Error updating versions:", error);
-    process.exit(1);
+    process.exit(2);
   }
 }
 

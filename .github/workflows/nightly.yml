@@ -30,6 +30,11 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
+          # Pinned so a manual workflow_dispatch run targeted at a non-main
+          # branch (selectable in the dispatch UI/CLI) can't create a
+          # release PR — or publish to npm — from unmerged/experimental
+          # commits. push/schedule events are always already on main.
+          ref: main
           fetch-depth: 0 # Needed for auto-changelog to see full history and tags
           persist-credentials: false
           token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
@@ -70,14 +75,25 @@ jobs:
           git tag "$VERSION"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$VERSION"
 
+      # update-versions.ts --check exits 0 (up to date), 1 (confirmed
+      # drift), or 2 (script failure, e.g. a transient GitHub/npm API
+      # error - not evidence of drift). Only exit 1 sets updates_found;
+      # exit 2 fails this step outright rather than being misread as drift.
       - name: Check for updates
         id: check_updates
         if: github.event_name != 'push'
         run: |
-          if npm run version:check; then
+          set +e
+          npm run version:check
+          CHECK_EXIT=$?
+          set -e
+          if [ $CHECK_EXIT -eq 0 ]; then
             echo "updates_found=false" >> "$GITHUB_OUTPUT"
-          else
+          elif [ $CHECK_EXIT -eq 1 ]; then
             echo "updates_found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version:check failed (exit $CHECK_EXIT) - treating as a script error, not confirmed drift"
+            exit $CHECK_EXIT
           fi
 
       # Manual runs (workflow_dispatch) always release, regardless of whether
@@ -86,8 +102,11 @@ jobs:
       - name: Determine whether to release
         id: should_release
         if: github.event_name != 'push'
+        env:
+          UPDATES_FOUND: ${{ steps.check_updates.outputs.updates_found }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [ "${{ steps.check_updates.outputs.updates_found }}" = "true" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$UPDATES_FOUND" = "true" ] || [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "value=true" >> "$GITHUB_OUTPUT"
           else
             echo "value=false" >> "$GITHUB_OUTPUT"
@@ -127,7 +146,7 @@ jobs:
           token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
           commit-message: "Release ${{ steps.bump.outputs.new_version }}"
           title: "Release ${{ steps.bump.outputs.new_version }}"
-          body: "Automated release. Merging tags and publishes ${{ steps.bump.outputs.new_version }} to npm."
+          body: "Automated release. Merging this PR tags the release and publishes ${{ steps.bump.outputs.new_version }} to npm."
           branch: nightly-updates
           base: main
           delete-branch: true
