@@ -8,6 +8,28 @@ fi
 
 # EXIT trap for teardown
 ISOLATED_OUTPUT_FILES="expired_token_output.txt notfound_error_output.txt validation_error_output.txt duplicate_error_output.txt"
+ALL_OUTPUT_FILES="workflow_output.txt $ISOLATED_OUTPUT_FILES test_run_output.txt"
+
+# Heuristic verdict on whether a failure is inside this node's own
+# verification/tests (a real compat issue to fix here) or a crash we hit
+# before ever reaching that point (docker/n8n/PocketBase itself misbehaving -
+# not evidence of a bug in this node). Keeps us from re-diagnosing the same
+# upstream n8n/PocketBase bug from scratch every time the nightly job fails.
+classify_failure() {
+	local combined=""
+	for f in $ALL_OUTPUT_FILES; do
+		[ -f "$f" ] && combined+="$(cat "$f")"$'\n'
+	done
+
+	if echo "$combined" | grep -qE "❌ (Verification failed|.* did not (succeed|fail) as expected)" \
+		|| echo "$combined" | grep -qE "^\s*(FAIL|✗|✕) |AssertionError"; then
+		echo "node"
+	elif echo "$combined" | grep -qE "SQLITE_ERROR|There was an error running database migrations|ECONNREFUSED|did not start in time|panic:|docker: [Ee]rror|Error response from daemon|exitWithCrash"; then
+		echo "upstream"
+	else
+		echo "unknown"
+	fi
+}
 
 on_exit() {
 	EXIT_CODE=$?
@@ -28,10 +50,41 @@ on_exit() {
 		echo "--- PocketBase Logs ---"
 		docker compose -f docker-compose.test.yml logs pocketbase
 		echo "-----------------------"
+
+		case "$(classify_failure)" in
+		upstream)
+			VERDICT="🔺 Looks like an upstream/environment issue (n8n, PocketBase, or Docker itself) — the failure happened before this node's own verification steps ran. Probably not a bug in n8n-nodes-pocketbase; check n8n/PocketBase release notes or file an upstream issue."
+			ANNOTATION="warning"
+			;;
+		node)
+			VERDICT="⚠️ Failure happened inside this node's own verification/test assertions — likely a real compatibility issue in n8n-nodes-pocketbase (or a behavior change upstream this node needs to adapt to). Worth investigating here."
+			ANNOTATION="error"
+			;;
+		*)
+			VERDICT="❓ Could not automatically classify this failure — check the logs above."
+			ANNOTATION=""
+			;;
+		esac
+
+		echo ""
+		echo "=================================================="
+		echo "$VERDICT"
+		echo "=================================================="
+
+		if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+			{
+				echo "## Nightly pipeline failure classification"
+				echo ""
+				echo "$VERDICT"
+			} >>"$GITHUB_STEP_SUMMARY"
+		fi
+		if [ -n "$ANNOTATION" ] && [ -n "${GITHUB_ACTIONS:-}" ]; then
+			echo "::${ANNOTATION}::${VERDICT}"
+		fi
 	fi
 	echo "Cleaning up..."
 	docker compose -f docker-compose.test.yml down -v
-	rm -f workflow_output.txt $ISOLATED_OUTPUT_FILES
+	rm -f $ALL_OUTPUT_FILES
 	exit $EXIT_CODE
 }
 trap on_exit EXIT
@@ -232,8 +285,8 @@ export POCKETBASE_TEST_PASS="password123"
 export N8N_TEST_URL="http://localhost:5678"
 
 set +e
-npm run test:run
-TEST_EXIT=$?
+npm run test:run 2>&1 | tee test_run_output.txt
+TEST_EXIT=${PIPESTATUS[0]}
 set -e
 
 # If tests passed
