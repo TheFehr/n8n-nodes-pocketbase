@@ -24,7 +24,7 @@ classify_failure() {
 	if echo "$combined" | grep -qE "❌ (Verification failed|.* did not (succeed|fail) as expected)" \
 		|| echo "$combined" | grep -qE "^\s*(FAIL|✗|✕) |AssertionError"; then
 		echo "node"
-	elif echo "$combined" | grep -qE "SQLITE_ERROR|There was an error running database migrations|ECONNREFUSED|did not start in time|Cannot find module|panic:|docker: [Ee]rror|Error response from daemon|exitWithCrash"; then
+	elif echo "$combined" | grep -qE "SQLITE_ERROR|There was an error running database migrations|ECONNREFUSED|did not start in time|panic:|docker: [Ee]rror|Error response from daemon|exitWithCrash"; then
 		echo "upstream"
 	else
 		echo "unknown"
