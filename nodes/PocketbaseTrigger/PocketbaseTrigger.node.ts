@@ -64,7 +64,6 @@ export class PocketbaseTrigger implements INodeType {
         description: "The events to trigger the node",
       },
     ],
-		usableAsTool: true,
   };
 
   methods = {
