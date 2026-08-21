@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-pocketbase",
-  "version": "2.3.24",
+  "version": "2.3.25",
   "description": "Interact with your PocketBase instance",
   "keywords": [
     "n8n-community-node-package"
@@ -62,5 +62,5 @@
     ]
   },
   "pocketbaseVersion": "0.39.11",
-  "n8nWorkflowVersion": "2.35.2"
+  "n8nWorkflowVersion": "2.35.3"
 }
