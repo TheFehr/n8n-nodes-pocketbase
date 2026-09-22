@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-pocketbase",
-  "version": "2.3.43",
+  "version": "2.3.44",
   "description": "Interact with your PocketBase instance",
   "keywords": [
     "n8n-community-node-package"
