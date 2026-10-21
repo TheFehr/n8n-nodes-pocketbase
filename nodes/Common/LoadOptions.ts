@@ -155,24 +155,22 @@ export const LoadOptions = {
       credentials.password as string,
     );
 
-    const items: IDataObject[] = [];
-    let page: number = 1;
-    let totalPages: number = 1;
-    const maxPages = 5; // Load up to 5 pages for the dropdown
-
-    do {
-      // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- see comment in loadPocketBaseFields above
-      const { items: pageItems, totalPages: pageTotalPages } = (await this.helpers.httpRequest({
+    const listRecords = async (qs: IDataObject): Promise<IDataObject[]> => {
+      const { items } = (await this.helpers.httpRequest({
         url: `${normalizedUrl}/api/collections/${resource}/records`,
         method: "GET",
-        qs: { sort: "-created", page, perPage: 50 },
+        qs,
         headers: { Authorization: token },
-      })) as { items: IDataObject[]; totalPages: number };
+      })) as { items: IDataObject[] };
+      return items;
+    };
 
-      items.push(...pageItems);
-      totalPages = pageTotalPages;
-      page++;
-    } while (page <= totalPages && page <= maxPages);
+    let items: IDataObject[];
+    try {
+      items = await listRecords({ sort: "-@rowid", perPage: 250, skipTotal: true });
+    } catch {
+      items = await listRecords({ perPage: 250, skipTotal: true });
+    }
 
     if (items.length === 0) {
       return [
