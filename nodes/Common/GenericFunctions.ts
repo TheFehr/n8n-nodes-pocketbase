@@ -97,6 +97,8 @@ export async function recordPreSendAction(
 export const recordUpdatePreSendAction = recordPreSendAction;
 export const recordCreatePreSendAction = recordPreSendAction;
 
+const FULL_LIST_PER_PAGE = 500;
+
 export async function pagination(
   this: IExecutePaginationFunctions,
   requestOptions: DeclarativeRestApiSettings.ResultOptions,
@@ -104,17 +106,16 @@ export async function pagination(
   const allIsActive = this.getNodeParameter("parameters.allElements", false) as boolean;
   const executions: INodeExecutionData[] = [];
   let page: number = this.getNodeParameter("parameters.page", 1) as number;
-  let totalPages: number = allIsActive ? Infinity : page;
 
   requestOptions.options ??= {};
   requestOptions.options.qs ??= {};
 
-  const maxPages = 1000;
+  if (allIsActive) {
+    requestOptions.options.qs.skipTotal = true;
+    requestOptions.options.qs.perPage ??= FULL_LIST_PER_PAGE;
+  }
 
-  do {
-    if (allIsActive && page > maxPages) {
-      throw new Error(`Pagination exceeded maximum of ${maxPages} pages`);
-    }
+  for (;;) {
     requestOptions.options.qs.page = page;
     const responseData = await this.makeRoutingRequest(requestOptions);
     if (!responseData || responseData.length === 0) {
@@ -145,39 +146,29 @@ export async function pagination(
       throw new Error(`PocketBase returned page ${resPage} but we requested ${page}`);
     }
 
-    if (allIsActive) {
-      const resTotalPages = Number(responseBody.totalPages);
-      if (!Number.isFinite(resTotalPages)) {
-        throw new Error("Missing or invalid totalPages in PocketBase response");
-      }
-      totalPages = resTotalPages;
-      this.logger.debug(`Fetching page ${page} of ${totalPages}`);
-    }
-
     if (!Array.isArray(responseBody.items)) {
-      throw new Error(
-        `PocketBase response for page ${page} (of ${totalPages}) did not contain an items array`,
-      );
+      throw new Error(`PocketBase response for page ${page} did not contain an items array`);
     }
 
     const items = responseBody.items as IDataObject[];
     executions.push(...items.map((item) => ({ json: item })));
 
-    if (items.length === 0) {
-      if (page < totalPages) {
-        this.logger.warn(
-          `PocketBase returned 0 items for page ${page} even though totalPages is ${totalPages}`,
-          {
-            page,
-            totalPages,
-          },
-        );
-      }
+    if (!allIsActive) {
       break;
     }
 
+    const perPage = Number(responseBody.perPage);
+    if (!Number.isFinite(perPage) || perPage < 1) {
+      throw new Error("Missing or invalid perPage in PocketBase response");
+    }
+
+    if (items.length < perPage) {
+      break;
+    }
+
+    this.logger.debug(`Fetched page ${page}, continuing`);
     page++;
-  } while (page <= totalPages);
+  }
 
   return executions;
 }
