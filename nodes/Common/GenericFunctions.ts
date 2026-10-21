@@ -118,8 +118,8 @@ export async function pagination(
   requestOptions.options ??= {};
   requestOptions.options.qs ??= {};
 
+  requestOptions.options.qs.skipTotal = true;
   if (allIsActive) {
-    requestOptions.options.qs.skipTotal = true;
     requestOptions.options.qs.perPage ??= FULL_LIST_PER_PAGE;
   }
 

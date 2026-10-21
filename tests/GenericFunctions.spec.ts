@@ -194,6 +194,28 @@ describe("GenericFunctions", () => {
       expect(mockThis.makeRoutingRequest).toHaveBeenCalledTimes(1501);
     });
 
+    it("should skip the total count for a single page too", async () => {
+      mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
+        if (name === "parameters.allElements") return false;
+        if (name === "parameters.page") return 1;
+        return defaultValue;
+      });
+
+      mockThis.makeRoutingRequest.mockResolvedValueOnce([
+        { json: { page: 1, perPage: 30, totalPages: -1, items: [{ id: 1 }] } },
+      ]);
+
+      const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+        options: { qs: {} },
+        preSend: [],
+        postReceive: [],
+      };
+      await pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions);
+
+      expect(mockThis.makeRoutingRequest).toHaveBeenCalledTimes(1);
+      expect(requestOptions.options.qs).toEqual({ skipTotal: true, page: 1 });
+    });
+
     it("should not apply page limit if allElements is false", async () => {
       mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
         if (name === "parameters.allElements") return false;
