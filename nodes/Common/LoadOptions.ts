@@ -1,4 +1,10 @@
-import type { IDataObject, ILoadOptionsFunctions, INodePropertyOptions } from "n8n-workflow";
+import { NodeApiError } from "n8n-workflow";
+import type {
+  IDataObject,
+  ILoadOptionsFunctions,
+  INodePropertyOptions,
+  JsonObject,
+} from "n8n-workflow";
 import { fetchPocketbaseToken } from "./GenericFunctions";
 
 export interface PocketBaseField {
@@ -168,7 +174,10 @@ export const LoadOptions = {
     let items: IDataObject[];
     try {
       items = await listRecords({ sort: "-@rowid", perPage: 250, skipTotal: true });
-    } catch {
+    } catch (error) {
+      if ((error as { response?: { status?: number } }).response?.status !== 400) {
+        throw new NodeApiError(this.getNode(), error as JsonObject);
+      }
       items = await listRecords({ perPage: 250, skipTotal: true });
     }
 

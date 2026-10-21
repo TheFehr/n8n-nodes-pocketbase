@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { IHttpRequestOptions, ILoadOptionsFunctions } from "n8n-workflow";
+import { NodeApiError, type IHttpRequestOptions, type ILoadOptionsFunctions } from "n8n-workflow";
 import { LoadOptions } from "../nodes/Common/LoadOptions";
 import { _resetTokenCacheForTesting } from "../nodes/Common/GenericFunctions";
 
@@ -17,6 +17,7 @@ describe("LoadOptions.getRows", () => {
         password: "password123",
       }),
       getNodeParameter: vi.fn().mockReturnValue("posts"),
+      getNode: vi.fn().mockReturnValue({ name: "Pocketbase HTTP", type: "pocketbaseHttp" }),
       helpers: { httpRequest },
     } as unknown as ILoadOptionsFunctions;
   });
@@ -41,7 +42,8 @@ describe("LoadOptions.getRows", () => {
   it("retries without sorting when the collection can't be sorted by rowid", async () => {
     httpRequest.mockImplementation(async (options) => {
       if (options.method === "POST") return { token: "token" };
-      if (options.qs?.sort) throw new Error("400 Bad Request");
+      if (options.qs?.sort)
+        throw Object.assign(new Error("Bad Request"), { response: { status: 400 } });
       return { items: [{ id: "abc", name: "From view" }] };
     });
 
@@ -52,5 +54,16 @@ describe("LoadOptions.getRows", () => {
       { sort: "-@rowid", perPage: 250, skipTotal: true },
       { perPage: 250, skipTotal: true },
     ]);
+  });
+
+  it("does not retry when the request fails for another reason", async () => {
+    const forbidden = Object.assign(new Error("Forbidden"), { response: { status: 403 } });
+    httpRequest.mockImplementation(async (options) => {
+      if (options.method === "POST") return { token: "token" };
+      throw forbidden;
+    });
+
+    await expect(LoadOptions.getRows.call(context)).rejects.toBeInstanceOf(NodeApiError);
+    expect(recordRequests()).toHaveLength(1);
   });
 });
