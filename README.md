@@ -46,7 +46,10 @@ Alternatively, you can use your administrator account and the "\_superusers" col
 
 ## Compatibility
 
-This was developed for version 2.44.4 of n8n and version 0.40.5 of PocketBase.
+- **PocketBase 0.23.0 or newer.** The node signs in through the `_superusers` collection, which PocketBase introduced in 0.23.0.
+- **n8n 1.85.0 or newer.** Older versions can't load the node, because it uses `NodeConnectionTypes`, which n8n added in 1.85.0.
+
+When a new n8n or PocketBase version comes out, a nightly job runs the integration tests against it and releases an update once they pass. Last tested with n8n 2.44.4 and PocketBase 0.40.5.
 
 ## Development
 
