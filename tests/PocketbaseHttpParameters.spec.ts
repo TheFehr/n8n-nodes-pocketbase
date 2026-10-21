@@ -44,10 +44,11 @@ function visibleOptions(operation: string): string[] {
 }
 
 describe("PocketbaseHttp parameters", () => {
-  it("shows all list options for List/Search", () => {
-    expect(visibleOptions("search")).toEqual(
-      ["allElements", "elementsPerPage", "fields", "filter", "page", "relation", "sort"].sort(),
-    );
+  it("shows every option for List/Search", () => {
+    const allOptions = (parametersCollection.options as INodeProperties[])
+      .map((option) => option.name)
+      .sort();
+    expect(visibleOptions("search")).toEqual(allOptions);
   });
 
   it.each(["view", "create", "update"])("shows only expand and fields for %s", (operation) => {
