@@ -100,8 +100,8 @@ export const recordCreatePreSendAction = recordPreSendAction;
 const FULL_LIST_PER_PAGE = 1000;
 
 function readPerPage(responseBody: IDataObject): number {
-  const perPage = Number(responseBody.perPage);
-  if (!Number.isFinite(perPage) || perPage < 1) {
+  const { perPage } = responseBody;
+  if (typeof perPage !== "number" || !Number.isSafeInteger(perPage) || perPage < 1) {
     throw new Error("Missing or invalid perPage in PocketBase response");
   }
   return perPage;

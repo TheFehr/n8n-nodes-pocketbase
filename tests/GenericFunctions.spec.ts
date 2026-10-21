@@ -303,6 +303,30 @@ describe("GenericFunctions", () => {
       ).rejects.toThrow("PocketBase returned page 2 but we requested 1");
     });
 
+    it.each([true, "2", 1.5, 0, Infinity])(
+      "should throw error if perPage is %s while fetching all elements",
+      async (perPage) => {
+        mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
+          if (name === "parameters.allElements") return true;
+          if (name === "parameters.page") return 1;
+          return defaultValue;
+        });
+
+        mockThis.makeRoutingRequest.mockResolvedValueOnce([
+          { json: { page: 1, perPage, items: [{ id: 1 }] } },
+        ]);
+
+        const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
+          options: { qs: {} },
+          preSend: [],
+          postReceive: [],
+        };
+        await expect(
+          pagination.call(mockThis as unknown as IExecutePaginationFunctions, requestOptions),
+        ).rejects.toThrow("Missing or invalid perPage in PocketBase response");
+      },
+    );
+
     it("should throw error if perPage is missing while fetching all elements", async () => {
       mockThis.getNodeParameter.mockImplementation((name: string, defaultValue: unknown) => {
         if (name === "parameters.allElements") return true;
