@@ -97,7 +97,15 @@ export async function recordPreSendAction(
 export const recordUpdatePreSendAction = recordPreSendAction;
 export const recordCreatePreSendAction = recordPreSendAction;
 
-const FULL_LIST_PER_PAGE = 500;
+const FULL_LIST_PER_PAGE = 1000;
+
+function readPerPage(responseBody: IDataObject): number {
+  const perPage = Number(responseBody.perPage);
+  if (!Number.isFinite(perPage) || perPage < 1) {
+    throw new Error("Missing or invalid perPage in PocketBase response");
+  }
+  return perPage;
+}
 
 export async function pagination(
   this: IExecutePaginationFunctions,
@@ -115,7 +123,8 @@ export async function pagination(
     requestOptions.options.qs.perPage ??= FULL_LIST_PER_PAGE;
   }
 
-  for (;;) {
+  let hasMore = true;
+  while (hasMore) {
     requestOptions.options.qs.page = page;
     const responseData = await this.makeRoutingRequest(requestOptions);
     if (!responseData || responseData.length === 0) {
@@ -153,20 +162,7 @@ export async function pagination(
     const items = responseBody.items as IDataObject[];
     executions.push(...items.map((item) => ({ json: item })));
 
-    if (!allIsActive) {
-      break;
-    }
-
-    const perPage = Number(responseBody.perPage);
-    if (!Number.isFinite(perPage) || perPage < 1) {
-      throw new Error("Missing or invalid perPage in PocketBase response");
-    }
-
-    if (items.length < perPage) {
-      break;
-    }
-
-    this.logger.debug(`Fetched page ${page}, continuing`);
+    hasMore = allIsActive && items.length >= readPerPage(responseBody);
     page++;
   }
 
