@@ -29,6 +29,49 @@ export interface PocketBaseField {
   minSelect?: number;
 }
 
+interface PocketBaseCollection {
+  name: string;
+  type: string;
+  fields: PocketBaseField[];
+}
+
+const collectionTypes = new Map<string, string>();
+
+export function _resetCollectionTypeCacheForTesting(): void {
+  collectionTypes.clear();
+}
+
+function collectionKey(url: string, collection: string): string {
+  return `${url}::${collection}`;
+}
+
+async function fetchCollection(
+  this: ILoadOptionsFunctions,
+  url: string,
+  token: string,
+  collection: string,
+): Promise<PocketBaseCollection> {
+  const result = (await this.helpers.httpRequest({
+    url: `${url}/api/collections/${collection}`,
+    method: "GET",
+    headers: { Authorization: token },
+  })) as PocketBaseCollection;
+  collectionTypes.set(collectionKey(url, collection), result.type);
+  return result;
+}
+
+async function getCollectionType(
+  this: ILoadOptionsFunctions,
+  url: string,
+  token: string,
+  collection: string,
+): Promise<string> {
+  return (
+    collectionTypes.get(collectionKey(url, collection)) ??
+    (await fetchCollection.call(this, url, token, collection)).type
+  );
+}
+
 async function loadPocketBaseFields(
   this: ILoadOptionsFunctions,
   collectionName: string | null = null,
@@ -44,41 +87,9 @@ async function loadPocketBaseFields(
     credentials.username as string,
     credentials.password as string,
   );
-  // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- httpRequestWithAuthentication relies on the credential's `authenticate` property, which this project deliberately removed (see commit 8003c58): n8n doesn't reliably invoke it during scheduled executions, causing 403s once the stored JWT expired. fetchPocketbaseToken replaces it with a reliable, cache-aware token fetch.
-  const { fields } = (await this.helpers.httpRequest({
-    url: `${normalizedUrl}/api/collections/${resource}`,
-    method: "GET",
-    headers: { Authorization: token },
-  })) as { fields: PocketBaseField[] };
+  const { fields } = await fetchCollection.call(this, normalizedUrl, token, resource);
 
   return fields;
-}
-
-const collectionTypes = new Map<string, string>();
-
-export function _resetCollectionTypeCacheForTesting(): void {
-  collectionTypes.clear();
-}
-
-async function getCollectionType(
-  this: ILoadOptionsFunctions,
-  url: string,
-  token: string,
-  collection: string,
-): Promise<string> {
-  const cacheKey = `${url}::${collection}`;
-  const cached = collectionTypes.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  const { type } = (await this.helpers.httpRequest({
-    url: `${url}/api/collections/${collection}`,
-    method: "GET",
-    qs: { fields: "type" },
-    headers: { Authorization: token },
-  })) as { type: string };
-  collectionTypes.set(cacheKey, type);
-  return type;
 }
 
 /**
@@ -119,7 +130,7 @@ export const LoadOptions = {
     let totalPages: number = 0;
 
     do {
-      // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- see comment in loadPocketBaseFields above
+      // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- httpRequestWithAuthentication relies on the credential's `authenticate` property, which this project deliberately removed (see commit 8003c58): n8n doesn't reliably invoke it during scheduled executions, causing 403s once the stored JWT expired. fetchPocketbaseToken replaces it with a reliable, cache-aware token fetch.
       const { items: pageItems, totalPages: pageTotalPages } = (await this.helpers.httpRequest({
         url: `${normalizedUrl}/api/collections`,
         method: "GET",
@@ -132,7 +143,9 @@ export const LoadOptions = {
       page++;
     } while (page <= totalPages);
 
-    items.forEach(({ name, type }) => collectionTypes.set(`${normalizedUrl}::${name}`, type));
+    items.forEach(({ name, type }) =>
+      collectionTypes.set(collectionKey(normalizedUrl, name), type),
+    );
 
     return items.map(({ name }) => ({ name, value: name })) as INodePropertyOptions[];
   },
@@ -205,8 +218,12 @@ export const LoadOptions = {
     try {
       items = await listRecords(type);
     } catch (error) {
-      collectionTypes.delete(`${normalizedUrl}::${resource}`);
-      const currentType = await getCollectionType.call(this, normalizedUrl, token, resource);
+      const { type: currentType } = await fetchCollection.call(
+        this,
+        normalizedUrl,
+        token,
+        resource,
+      );
       if (currentType === type) {
         throw new NodeApiError(this.getNode(), error as JsonObject);
       }

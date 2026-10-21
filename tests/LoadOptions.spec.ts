@@ -25,7 +25,7 @@ describe("LoadOptions.getRows", () => {
       if (options.url.endsWith("/records")) {
         return { items: [{ id: "abc", name: `Latest in ${collection}` }] };
       }
-      return { type: collectionTypes[collection] };
+      return { name: collection, type: collectionTypes[collection], fields: [] };
     });
     context = {
       getCredentials: vi.fn().mockResolvedValue({
@@ -69,7 +69,6 @@ describe("LoadOptions.getRows", () => {
     await LoadOptions.getRows.call(context);
 
     expect(requestsTo(/\/api\/collections\/posts$/)).toHaveLength(1);
-    expect(requestsTo(/\/api\/collections\/posts$/)[0].qs).toEqual({ fields: "type" });
   });
 
   it("reuses collection types already loaded for the collection dropdown", async () => {
@@ -78,6 +77,15 @@ describe("LoadOptions.getRows", () => {
     await LoadOptions.getRows.call(context);
 
     expect(requestsTo(/\/api\/collections\/[^/]+$/)).toHaveLength(0);
+    expect(requestsTo(/\/records$/)[0].qs).toEqual({ perPage: 250, skipTotal: true });
+  });
+
+  it("reuses collection types loaded for the field dropdowns", async () => {
+    vi.mocked(context.getNodeParameter).mockReturnValue("posts_view");
+    await LoadOptions.getFields.call(context);
+    await LoadOptions.getRows.call(context);
+
+    expect(requestsTo(/\/api\/collections\/posts_view$/)).toHaveLength(1);
     expect(requestsTo(/\/records$/)[0].qs).toEqual({ perPage: 250, skipTotal: true });
   });
 
