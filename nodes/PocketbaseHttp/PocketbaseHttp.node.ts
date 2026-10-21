@@ -249,6 +249,25 @@ export class PocketbaseHttp implements INodeType {
             },
           },
           {
+            displayName: "Skip Total",
+            name: "skipTotal",
+            type: "boolean",
+            default: false,
+            description:
+              "Whether to skip counting the total number of matching records. Speeds up listing large collections. Always applied when All Elements is enabled.",
+            displayOptions: {
+              show: {
+                "/operation": ["search"],
+              },
+            },
+            routing: {
+              send: {
+                type: "query",
+                property: "skipTotal",
+              },
+            },
+          },
+          {
             displayName: "Sort",
             name: "sort",
             type: "string",
