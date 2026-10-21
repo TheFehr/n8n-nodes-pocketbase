@@ -7,6 +7,7 @@ const parametersCollection = description.properties.find(
   (property) => property.name === "parameters",
 ) as INodeProperties;
 
+/** Builds a minimal Pocketbase HTTP node with the given operation selected. */
 function makeNode(operation: string): INode {
   return {
     id: "test",
@@ -18,7 +19,10 @@ function makeNode(operation: string): INode {
   };
 }
 
-// Mirrors the check n8n's RoutingNode runs before sending a parameter
+/**
+ * Whether n8n displays the property for the given operation.
+ * Mirrors the check n8n's RoutingNode runs before sending a parameter.
+ */
 function isDisplayed(property: INodeProperties, operation: string): boolean {
   const node = makeNode(operation);
   return NodeHelpers.displayParameter(
@@ -30,6 +34,7 @@ function isDisplayed(property: INodeProperties, operation: string): boolean {
   );
 }
 
+/** Names of the Parameters collection options displayed for the given operation, sorted. */
 function visibleOptions(operation: string): string[] {
   if (!isDisplayed(parametersCollection, operation)) return [];
   return (parametersCollection.options as INodeProperties[])
