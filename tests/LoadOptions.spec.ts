@@ -1,15 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { NodeApiError, type IHttpRequestOptions, type ILoadOptionsFunctions } from "n8n-workflow";
-import { LoadOptions } from "../nodes/Common/LoadOptions";
+import type { IHttpRequestOptions, ILoadOptionsFunctions } from "n8n-workflow";
+import { LoadOptions, _resetCollectionTypeCacheForTesting } from "../nodes/Common/LoadOptions";
 import { _resetTokenCacheForTesting } from "../nodes/Common/GenericFunctions";
 
 describe("LoadOptions.getRows", () => {
   let httpRequest: ReturnType<typeof vi.fn<(options: IHttpRequestOptions) => Promise<unknown>>>;
   let context: ILoadOptionsFunctions;
+  let collectionTypes: Record<string, string>;
 
   beforeEach(() => {
     _resetTokenCacheForTesting();
+    _resetCollectionTypeCacheForTesting();
+    collectionTypes = { posts: "base", posts_view: "view" };
     httpRequest = vi.fn<(options: IHttpRequestOptions) => Promise<unknown>>();
+    httpRequest.mockImplementation(async (options) => {
+      if (options.method === "POST") return { token: "token" };
+      if (options.url.endsWith("/api/collections")) {
+        return {
+          totalPages: 1,
+          items: Object.entries(collectionTypes).map(([name, type]) => ({ name, type })),
+        };
+      }
+      const collection = options.url.match(/\/api\/collections\/([^/]+)/)![1];
+      if (options.url.endsWith("/records")) {
+        return { items: [{ id: "abc", name: `Latest in ${collection}` }] };
+      }
+      return { type: collectionTypes[collection] };
+    });
     context = {
       getCredentials: vi.fn().mockResolvedValue({
         url: "http://localhost:8090/",
@@ -17,53 +34,48 @@ describe("LoadOptions.getRows", () => {
         password: "password123",
       }),
       getNodeParameter: vi.fn().mockReturnValue("posts"),
-      getNode: vi.fn().mockReturnValue({ name: "Pocketbase HTTP", type: "pocketbaseHttp" }),
       helpers: { httpRequest },
     } as unknown as ILoadOptionsFunctions;
   });
 
-  const recordRequests = () =>
+  const requestsTo = (pattern: RegExp) =>
     httpRequest.mock.calls
       .map(([options]) => options)
-      .filter((options) => options.url.endsWith("/api/collections/posts/records"));
+      .filter((options) => pattern.test(options.url));
 
   it("loads the 250 most recent records in a single request without counting", async () => {
-    httpRequest.mockImplementation(async (options) =>
-      options.method === "POST" ? { token: "token" } : { items: [{ id: "abc", name: "Latest" }] },
-    );
-
     const options = await LoadOptions.getRows.call(context);
 
-    expect(options).toEqual([{ name: "Latest", value: "abc" }]);
-    expect(recordRequests()).toHaveLength(1);
-    expect(recordRequests()[0].qs).toEqual({ sort: "-@rowid", perPage: 250, skipTotal: true });
+    expect(options).toEqual([{ name: "Latest in posts", value: "abc" }]);
+    expect(requestsTo(/\/records$/)).toHaveLength(1);
+    expect(requestsTo(/\/records$/)[0].qs).toEqual({
+      sort: "-@rowid",
+      perPage: 250,
+      skipTotal: true,
+    });
   });
 
-  it("retries without sorting when the collection can't be sorted by rowid", async () => {
-    httpRequest.mockImplementation(async (options) => {
-      if (options.method === "POST") return { token: "token" };
-      if (options.qs?.sort)
-        throw Object.assign(new Error("Bad Request"), { response: { status: 400 } });
-      return { items: [{ id: "abc", name: "From view" }] };
-    });
+  it("doesn't sort view collections, which can't be sorted by rowid", async () => {
+    vi.mocked(context.getNodeParameter).mockReturnValue("posts_view");
 
-    const options = await LoadOptions.getRows.call(context);
+    await LoadOptions.getRows.call(context);
 
-    expect(options).toEqual([{ name: "From view", value: "abc" }]);
-    expect(recordRequests().map((request) => request.qs)).toEqual([
-      { sort: "-@rowid", perPage: 250, skipTotal: true },
-      { perPage: 250, skipTotal: true },
-    ]);
+    expect(requestsTo(/\/records$/)[0].qs).toEqual({ perPage: 250, skipTotal: true });
   });
 
-  it("does not retry when the request fails for another reason", async () => {
-    const forbidden = Object.assign(new Error("Forbidden"), { response: { status: 403 } });
-    httpRequest.mockImplementation(async (options) => {
-      if (options.method === "POST") return { token: "token" };
-      throw forbidden;
-    });
+  it("looks up a collection's type only once", async () => {
+    await LoadOptions.getRows.call(context);
+    await LoadOptions.getRows.call(context);
 
-    await expect(LoadOptions.getRows.call(context)).rejects.toBeInstanceOf(NodeApiError);
-    expect(recordRequests()).toHaveLength(1);
+    expect(requestsTo(/\/api\/collections\/posts$/)).toHaveLength(1);
+  });
+
+  it("reuses collection types already loaded for the collection dropdown", async () => {
+    await LoadOptions.getCollections.call(context);
+    vi.mocked(context.getNodeParameter).mockReturnValue("posts_view");
+    await LoadOptions.getRows.call(context);
+
+    expect(requestsTo(/\/api\/collections\/[^/]+$/)).toHaveLength(0);
+    expect(requestsTo(/\/records$/)[0].qs).toEqual({ perPage: 250, skipTotal: true });
   });
 });

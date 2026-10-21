@@ -1,10 +1,4 @@
-import { NodeApiError } from "n8n-workflow";
-import type {
-  IDataObject,
-  ILoadOptionsFunctions,
-  INodePropertyOptions,
-  JsonObject,
-} from "n8n-workflow";
+import type { IDataObject, ILoadOptionsFunctions, INodePropertyOptions } from "n8n-workflow";
 import { fetchPocketbaseToken } from "./GenericFunctions";
 
 export interface PocketBaseField {
@@ -54,6 +48,33 @@ async function loadPocketBaseFields(
   return fields;
 }
 
+const collectionTypes = new Map<string, string>();
+
+export function _resetCollectionTypeCacheForTesting(): void {
+  collectionTypes.clear();
+}
+
+async function getCollectionType(
+  this: ILoadOptionsFunctions,
+  url: string,
+  token: string,
+  collection: string,
+): Promise<string> {
+  const cacheKey = `${url}::${collection}`;
+  const cached = collectionTypes.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  const { type } = (await this.helpers.httpRequest({
+    url: `${url}/api/collections/${collection}`,
+    method: "GET",
+    qs: { fields: "type" },
+    headers: { Authorization: token },
+  })) as { type: string };
+  collectionTypes.set(cacheKey, type);
+  return type;
+}
+
 /**
  * Helper to generate a descriptive label from a record's data.
  */
@@ -87,7 +108,7 @@ export const LoadOptions = {
       credentials.password as string,
     );
 
-    const items: { name: string }[] = [];
+    const items: { name: string; type: string }[] = [];
     let page: number = 1;
     let totalPages: number = 0;
 
@@ -98,12 +119,14 @@ export const LoadOptions = {
         method: "GET",
         qs: { page },
         headers: { Authorization: token },
-      })) as { items: { name: string }[]; totalPages: number };
+      })) as { items: { name: string; type: string }[]; totalPages: number };
 
       items.push(...pageItems);
       totalPages = pageTotalPages;
       page++;
     } while (page <= totalPages);
+
+    items.forEach(({ name, type }) => collectionTypes.set(`${normalizedUrl}::${name}`, type));
 
     return items.map(({ name }) => ({ name, value: name })) as INodePropertyOptions[];
   },
@@ -161,25 +184,14 @@ export const LoadOptions = {
       credentials.password as string,
     );
 
-    const listRecords = async (qs: IDataObject): Promise<IDataObject[]> => {
-      const { items } = (await this.helpers.httpRequest({
-        url: `${normalizedUrl}/api/collections/${resource}/records`,
-        method: "GET",
-        qs,
-        headers: { Authorization: token },
-      })) as { items: IDataObject[] };
-      return items;
-    };
-
-    let items: IDataObject[];
-    try {
-      items = await listRecords({ sort: "-@rowid", perPage: 250, skipTotal: true });
-    } catch (error) {
-      if ((error as { response?: { status?: number } }).response?.status !== 400) {
-        throw new NodeApiError(this.getNode(), error as JsonObject);
-      }
-      items = await listRecords({ perPage: 250, skipTotal: true });
-    }
+    const type = await getCollectionType.call(this, normalizedUrl, token, resource);
+    // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- see comment in loadPocketBaseFields above
+    const { items } = (await this.helpers.httpRequest({
+      url: `${normalizedUrl}/api/collections/${resource}/records`,
+      method: "GET",
+      qs: { ...(type === "view" ? {} : { sort: "-@rowid" }), perPage: 250, skipTotal: true },
+      headers: { Authorization: token },
+    })) as { items: IDataObject[] };
 
     if (items.length === 0) {
       return [
