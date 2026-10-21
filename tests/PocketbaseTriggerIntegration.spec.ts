@@ -40,20 +40,21 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
     }
 
     const triggerFunctions = {
-      getCredentials: async () => ({ url: baseUrl, token }),
+      getCredentials: async () => ({ url: baseUrl, username: email, password }),
       getNodeParameter: (name: string) => {
         if (name === "collection") return "users";
         if (name === "events") return ["create"];
         return undefined;
       },
       helpers: {
-        httpRequestWithAuthentication: async (cred: string, options: MockHttpRequestOptions) => {
+        // Plain httpRequest: unlike the real credential-authenticated helper of the past, this adds no
+        // Authorization header, so the trigger has to authenticate its own realtime subscription.
+        httpRequest: async (options: MockHttpRequestOptions) => {
           const res = await fetch(options.url, {
             method: options.method,
             headers: {
               ...options.headers,
               "Content-Type": "application/json",
-              Authorization: token,
             },
             body: JSON.stringify(options.body),
           });
