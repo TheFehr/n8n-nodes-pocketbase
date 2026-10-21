@@ -1,4 +1,10 @@
-import type { IDataObject, ILoadOptionsFunctions, INodePropertyOptions } from "n8n-workflow";
+import { NodeApiError } from "n8n-workflow";
+import type {
+  IDataObject,
+  ILoadOptionsFunctions,
+  INodePropertyOptions,
+  JsonObject,
+} from "n8n-workflow";
 import { fetchPocketbaseToken } from "./GenericFunctions";
 
 export interface PocketBaseField {
@@ -184,14 +190,28 @@ export const LoadOptions = {
       credentials.password as string,
     );
 
+    const listRecords = async (type: string): Promise<IDataObject[]> => {
+      const { items } = (await this.helpers.httpRequest({
+        url: `${normalizedUrl}/api/collections/${resource}/records`,
+        method: "GET",
+        qs: { ...(type === "view" ? {} : { sort: "-@rowid" }), perPage: 250, skipTotal: true },
+        headers: { Authorization: token },
+      })) as { items: IDataObject[] };
+      return items;
+    };
+
     const type = await getCollectionType.call(this, normalizedUrl, token, resource);
-    // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- see comment in loadPocketBaseFields above
-    const { items } = (await this.helpers.httpRequest({
-      url: `${normalizedUrl}/api/collections/${resource}/records`,
-      method: "GET",
-      qs: { ...(type === "view" ? {} : { sort: "-@rowid" }), perPage: 250, skipTotal: true },
-      headers: { Authorization: token },
-    })) as { items: IDataObject[] };
+    let items: IDataObject[];
+    try {
+      items = await listRecords(type);
+    } catch (error) {
+      collectionTypes.delete(`${normalizedUrl}::${resource}`);
+      const currentType = await getCollectionType.call(this, normalizedUrl, token, resource);
+      if (currentType === type) {
+        throw new NodeApiError(this.getNode(), error as JsonObject);
+      }
+      items = await listRecords(currentType);
+    }
 
     if (items.length === 0) {
       return [

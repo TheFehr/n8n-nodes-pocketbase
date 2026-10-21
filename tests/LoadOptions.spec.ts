@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { IHttpRequestOptions, ILoadOptionsFunctions } from "n8n-workflow";
+import { NodeApiError, type IHttpRequestOptions, type ILoadOptionsFunctions } from "n8n-workflow";
 import { LoadOptions, _resetCollectionTypeCacheForTesting } from "../nodes/Common/LoadOptions";
 import { _resetTokenCacheForTesting } from "../nodes/Common/GenericFunctions";
 
@@ -34,6 +34,7 @@ describe("LoadOptions.getRows", () => {
         password: "password123",
       }),
       getNodeParameter: vi.fn().mockReturnValue("posts"),
+      getNode: vi.fn().mockReturnValue({ name: "Pocketbase HTTP", type: "pocketbaseHttp" }),
       helpers: { httpRequest },
     } as unknown as ILoadOptionsFunctions;
   });
@@ -68,6 +69,7 @@ describe("LoadOptions.getRows", () => {
     await LoadOptions.getRows.call(context);
 
     expect(requestsTo(/\/api\/collections\/posts$/)).toHaveLength(1);
+    expect(requestsTo(/\/api\/collections\/posts$/)[0].qs).toEqual({ fields: "type" });
   });
 
   it("reuses collection types already loaded for the collection dropdown", async () => {
@@ -77,5 +79,38 @@ describe("LoadOptions.getRows", () => {
 
     expect(requestsTo(/\/api\/collections\/[^/]+$/)).toHaveLength(0);
     expect(requestsTo(/\/records$/)[0].qs).toEqual({ perPage: 250, skipTotal: true });
+  });
+
+  it("re-checks a cached type when loading fails and retries if the type changed", async () => {
+    await LoadOptions.getCollections.call(context);
+    collectionTypes.posts = "view";
+    const recordsHandler = httpRequest.getMockImplementation()!;
+    httpRequest.mockImplementation(async (options) => {
+      if (options.url.endsWith("/records") && options.qs?.sort) {
+        throw Object.assign(new Error("Bad Request"), { response: { status: 400 } });
+      }
+      return await recordsHandler(options);
+    });
+
+    const options = await LoadOptions.getRows.call(context);
+
+    expect(options).toEqual([{ name: "Latest in posts", value: "abc" }]);
+    expect(requestsTo(/\/records$/).map((request) => request.qs)).toEqual([
+      { sort: "-@rowid", perPage: 250, skipTotal: true },
+      { perPage: 250, skipTotal: true },
+    ]);
+  });
+
+  it("doesn't retry when the type is unchanged", async () => {
+    const recordsHandler = httpRequest.getMockImplementation()!;
+    httpRequest.mockImplementation(async (options) => {
+      if (options.url.endsWith("/records")) {
+        throw Object.assign(new Error("Forbidden"), { response: { status: 403 } });
+      }
+      return await recordsHandler(options);
+    });
+
+    await expect(LoadOptions.getRows.call(context)).rejects.toBeInstanceOf(NodeApiError);
+    expect(requestsTo(/\/records$/)).toHaveLength(1);
   });
 });
