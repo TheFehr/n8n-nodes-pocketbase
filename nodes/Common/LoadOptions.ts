@@ -218,16 +218,16 @@ export const LoadOptions = {
     try {
       items = await listRecords(type);
     } catch (error) {
-      const { type: currentType } = await fetchCollection.call(
-        this,
-        normalizedUrl,
-        token,
-        resource,
+      const currentType = await fetchCollection.call(this, normalizedUrl, token, resource).then(
+        (collection) => collection.type,
+        () => type,
       );
       if (currentType === type) {
         throw new NodeApiError(this.getNode(), error as JsonObject);
       }
-      items = await listRecords(currentType);
+      items = await listRecords(currentType).catch((retryError: unknown) => {
+        throw new NodeApiError(this.getNode(), retryError as JsonObject);
+      });
     }
 
     if (items.length === 0) {

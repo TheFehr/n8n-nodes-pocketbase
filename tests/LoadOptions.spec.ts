@@ -121,4 +121,33 @@ describe("LoadOptions.getRows", () => {
     await expect(LoadOptions.getRows.call(context)).rejects.toBeInstanceOf(NodeApiError);
     expect(requestsTo(/\/records$/)).toHaveLength(1);
   });
+
+  it("reports the records error when re-checking the type also fails", async () => {
+    await LoadOptions.getCollections.call(context);
+    const recordsHandler = httpRequest.getMockImplementation()!;
+    httpRequest.mockImplementation(async (options) => {
+      if (options.url.endsWith("/records")) throw new Error("Forbidden");
+      if (options.url.endsWith("/api/collections/posts")) throw new Error("Unavailable");
+      return await recordsHandler(options);
+    });
+
+    const error = await LoadOptions.getRows.call(context).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(NodeApiError);
+    expect((error as NodeApiError).message).toContain("Forbidden");
+    expect(requestsTo(/\/records$/)).toHaveLength(1);
+  });
+
+  it("wraps a failed retry after a type change in NodeApiError", async () => {
+    await LoadOptions.getCollections.call(context);
+    collectionTypes.posts = "view";
+    const recordsHandler = httpRequest.getMockImplementation()!;
+    httpRequest.mockImplementation(async (options) => {
+      if (options.url.endsWith("/records")) throw new Error("Forbidden");
+      return await recordsHandler(options);
+    });
+
+    await expect(LoadOptions.getRows.call(context)).rejects.toBeInstanceOf(NodeApiError);
+    expect(requestsTo(/\/records$/)).toHaveLength(2);
+  });
 });
