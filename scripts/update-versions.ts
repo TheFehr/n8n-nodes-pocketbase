@@ -110,10 +110,9 @@ async function updateReadme(
     updated = true;
   }
 
-  // Replace "This was developed for version X of n8n and version Y of PocketBase."
-  const regex =
-    /This was developed for version ([\d.]+) of n8n and version ([\d.]+) of PocketBase./;
-  const replacement = `This was developed for version ${n8nVersion} of n8n and version ${pbVersion} of PocketBase.`;
+  // Replace "Last tested with n8n X and PocketBase Y."
+  const regex = /Last tested with n8n ([\d.]+) and PocketBase ([\d.]+)\./;
+  const replacement = `Last tested with n8n ${n8nVersion} and PocketBase ${pbVersion}.`;
 
   const match = content.match(regex);
   if (match) {

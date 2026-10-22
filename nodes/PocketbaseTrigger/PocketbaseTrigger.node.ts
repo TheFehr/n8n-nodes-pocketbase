@@ -7,6 +7,7 @@ import {
   NodeConnectionTypes,
 } from "n8n-workflow";
 import { EventSource, ErrorEvent as EventSourceErrorEvent } from "eventsource";
+import { fetchPocketbaseToken } from "../Common/GenericFunctions";
 import { LoadOptions } from "../Common/LoadOptions";
 
 export class PocketbaseTrigger implements INodeType {
@@ -115,9 +116,21 @@ function subscribeToPocketbaseSSE(
       const data = JSON.parse(e.data as string);
       const clientId = data.clientId;
 
-      await this.helpers.httpRequestWithAuthentication.call(this, "pocketbaseHttpApi", {
+      const credentials = await this.getCredentials("pocketbaseHttpApi");
+      const token = await fetchPocketbaseToken(
+        (opts) => this.helpers.httpRequest(opts),
+        baseUrl,
+        credentials.username as string,
+        credentials.password as string,
+      );
+
+      // Realtime ties the subscription's auth to this request. Without a token PocketBase treats the
+      // client as a guest and never delivers events for collections whose rules aren't public.
+      // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- httpRequestWithAuthentication relies on the credential's `authenticate` property, which this project deliberately removed (see commit 8003c58). fetchPocketbaseToken replaces it with a reliable, cache-aware token fetch.
+      await this.helpers.httpRequest({
         method: "POST",
         url: `${baseUrl}/api/realtime`,
+        headers: { Authorization: token },
         body: {
           clientId,
           subscriptions: [collection],

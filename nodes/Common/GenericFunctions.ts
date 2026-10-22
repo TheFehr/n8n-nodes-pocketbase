@@ -97,6 +97,16 @@ export async function recordPreSendAction(
 export const recordUpdatePreSendAction = recordPreSendAction;
 export const recordCreatePreSendAction = recordPreSendAction;
 
+const FULL_LIST_PER_PAGE = 1000;
+
+function readPerPage(responseBody: IDataObject): number {
+  const { perPage } = responseBody;
+  if (typeof perPage !== "number" || !Number.isSafeInteger(perPage) || perPage < 1) {
+    throw new Error("Missing or invalid perPage in PocketBase response");
+  }
+  return perPage;
+}
+
 export async function pagination(
   this: IExecutePaginationFunctions,
   requestOptions: DeclarativeRestApiSettings.ResultOptions,
@@ -104,17 +114,17 @@ export async function pagination(
   const allIsActive = this.getNodeParameter("parameters.allElements", false) as boolean;
   const executions: INodeExecutionData[] = [];
   let page: number = this.getNodeParameter("parameters.page", 1) as number;
-  let totalPages: number = allIsActive ? Infinity : page;
 
   requestOptions.options ??= {};
   requestOptions.options.qs ??= {};
 
-  const maxPages = 1000;
+  requestOptions.options.qs.skipTotal = true;
+  if (allIsActive) {
+    requestOptions.options.qs.perPage ??= FULL_LIST_PER_PAGE;
+  }
 
-  do {
-    if (allIsActive && page > maxPages) {
-      throw new Error(`Pagination exceeded maximum of ${maxPages} pages`);
-    }
+  let hasMore = true;
+  while (hasMore) {
     requestOptions.options.qs.page = page;
     const responseData = await this.makeRoutingRequest(requestOptions);
     if (!responseData || responseData.length === 0) {
@@ -145,39 +155,16 @@ export async function pagination(
       throw new Error(`PocketBase returned page ${resPage} but we requested ${page}`);
     }
 
-    if (allIsActive) {
-      const resTotalPages = Number(responseBody.totalPages);
-      if (!Number.isFinite(resTotalPages)) {
-        throw new Error("Missing or invalid totalPages in PocketBase response");
-      }
-      totalPages = resTotalPages;
-      this.logger.debug(`Fetching page ${page} of ${totalPages}`);
-    }
-
     if (!Array.isArray(responseBody.items)) {
-      throw new Error(
-        `PocketBase response for page ${page} (of ${totalPages}) did not contain an items array`,
-      );
+      throw new Error(`PocketBase response for page ${page} did not contain an items array`);
     }
 
     const items = responseBody.items as IDataObject[];
     executions.push(...items.map((item) => ({ json: item })));
 
-    if (items.length === 0) {
-      if (page < totalPages) {
-        this.logger.warn(
-          `PocketBase returned 0 items for page ${page} even though totalPages is ${totalPages}`,
-          {
-            page,
-            totalPages,
-          },
-        );
-      }
-      break;
-    }
-
+    hasMore = allIsActive && items.length >= readPerPage(responseBody);
     page++;
-  } while (page <= totalPages);
+  }
 
   return executions;
 }
