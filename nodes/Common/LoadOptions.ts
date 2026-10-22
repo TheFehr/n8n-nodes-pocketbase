@@ -29,20 +29,16 @@ export interface PocketBaseField {
   minSelect?: number;
 }
 
-interface CollectionIdentity {
-  id: string;
-  type: string;
-}
-
-interface PocketBaseCollection extends CollectionIdentity {
+interface PocketBaseCollection {
   name: string;
+  type: string;
   fields: PocketBaseField[];
 }
 
-const collections = new Map<string, CollectionIdentity>();
+const collectionTypes = new Map<string, string>();
 
-export function _resetCollectionCacheForTesting(): void {
-  collections.clear();
+export function _resetCollectionTypeCacheForTesting(): void {
+  collectionTypes.clear();
 }
 
 function collectionKey(url: string, collection: string): string {
@@ -60,19 +56,19 @@ async function fetchCollection(
     method: "GET",
     headers: { Authorization: token },
   })) as PocketBaseCollection;
-  collections.set(collectionKey(url, collection), { id: result.id, type: result.type });
+  collectionTypes.set(collectionKey(url, collection), result.type);
   return result;
 }
 
-async function getCollection(
+async function getCollectionType(
   this: ILoadOptionsFunctions,
   url: string,
   token: string,
   collection: string,
-): Promise<CollectionIdentity> {
+): Promise<string> {
   return (
-    collections.get(collectionKey(url, collection)) ??
-    (await fetchCollection.call(this, url, token, collection))
+    collectionTypes.get(collectionKey(url, collection)) ??
+    (await fetchCollection.call(this, url, token, collection)).type
   );
 }
 
@@ -129,7 +125,7 @@ export const LoadOptions = {
       credentials.password as string,
     );
 
-    const items: (CollectionIdentity & { name: string })[] = [];
+    const items: { name: string; type: string }[] = [];
     let page: number = 1;
     let totalPages: number = 0;
 
@@ -140,15 +136,15 @@ export const LoadOptions = {
         method: "GET",
         qs: { page },
         headers: { Authorization: token },
-      })) as { items: (CollectionIdentity & { name: string })[]; totalPages: number };
+      })) as { items: { name: string; type: string }[]; totalPages: number };
 
       items.push(...pageItems);
       totalPages = pageTotalPages;
       page++;
     } while (page <= totalPages);
 
-    items.forEach(({ name, id, type }) =>
-      collections.set(collectionKey(normalizedUrl, name), { id, type }),
+    items.forEach(({ name, type }) =>
+      collectionTypes.set(collectionKey(normalizedUrl, name), type),
     );
 
     return items.map(({ name }) => ({ name, value: name })) as INodePropertyOptions[];
@@ -217,32 +213,21 @@ export const LoadOptions = {
       return items;
     };
 
-    const retryRecords = async (type: string): Promise<IDataObject[]> =>
-      await listRecords(type).catch((retryError: unknown) => {
-        throw new NodeApiError(this.getNode(), retryError as JsonObject);
-      });
-
-    let collection = await getCollection.call(this, normalizedUrl, token, resource);
-    const refresh = async (): Promise<CollectionIdentity> =>
-      await fetchCollection.call(this, normalizedUrl, token, resource).catch(() => collection);
-
+    const type = await getCollectionType.call(this, normalizedUrl, token, resource);
     let items: IDataObject[];
     try {
-      items = await listRecords(collection.type);
+      items = await listRecords(type);
     } catch (error) {
-      const current = await refresh();
-      if (current.type === collection.type) {
+      const currentType = await fetchCollection.call(this, normalizedUrl, token, resource).then(
+        (collection) => collection.type,
+        () => type,
+      );
+      if (currentType === type) {
         throw new NodeApiError(this.getNode(), error as JsonObject);
       }
-      collection = current;
-      items = await retryRecords(collection.type);
-    }
-
-    if (items.length > 0 && items[0].collectionId !== collection.id) {
-      const current = await refresh();
-      if (current.type !== collection.type) {
-        items = await retryRecords(current.type);
-      }
+      items = await listRecords(currentType).catch((retryError: unknown) => {
+        throw new NodeApiError(this.getNode(), retryError as JsonObject);
+      });
     }
 
     if (items.length === 0) {

@@ -1,42 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NodeApiError, type IHttpRequestOptions, type ILoadOptionsFunctions } from "n8n-workflow";
-import { LoadOptions, _resetCollectionCacheForTesting } from "../nodes/Common/LoadOptions";
+import { LoadOptions, _resetCollectionTypeCacheForTesting } from "../nodes/Common/LoadOptions";
 import { _resetTokenCacheForTesting } from "../nodes/Common/GenericFunctions";
 
 describe("LoadOptions.getRows", () => {
   let httpRequest: ReturnType<typeof vi.fn<(options: IHttpRequestOptions) => Promise<unknown>>>;
   let context: ILoadOptionsFunctions;
-  let collections: Record<string, { id: string; type: string }>;
+  let collectionTypes: Record<string, string>;
 
   beforeEach(() => {
     _resetTokenCacheForTesting();
-    _resetCollectionCacheForTesting();
-    collections = {
-      posts: { id: "posts_id", type: "base" },
-      posts_view: { id: "posts_view_id", type: "view" },
-    };
+    _resetCollectionTypeCacheForTesting();
+    collectionTypes = { posts: "base", posts_view: "view" };
     httpRequest = vi.fn<(options: IHttpRequestOptions) => Promise<unknown>>();
     httpRequest.mockImplementation(async (options) => {
       if (options.method === "POST") return { token: "token" };
       if (options.url.endsWith("/api/collections")) {
         return {
           totalPages: 1,
-          items: Object.entries(collections).map(([name, collection]) => ({ name, ...collection })),
+          items: Object.entries(collectionTypes).map(([name, type]) => ({ name, type })),
         };
       }
       const collection = options.url.match(/\/api\/collections\/([^/]+)/)![1];
       if (options.url.endsWith("/records")) {
-        return {
-          items: [
-            {
-              id: "abc",
-              collectionId: collections[collection].id,
-              name: `Latest in ${collection}`,
-            },
-          ],
-        };
+        return { items: [{ id: "abc", name: `Latest in ${collection}` }] };
       }
-      return { name: collection, ...collections[collection], fields: [] };
+      return { name: collection, type: collectionTypes[collection], fields: [] };
     });
     context = {
       getCredentials: vi.fn().mockResolvedValue({
@@ -102,7 +91,7 @@ describe("LoadOptions.getRows", () => {
 
   it("re-checks a cached type when loading fails and retries if the type changed", async () => {
     await LoadOptions.getCollections.call(context);
-    collections.posts = { id: "recreated_posts_id", type: "view" };
+    collectionTypes.posts = "view";
     const recordsHandler = httpRequest.getMockImplementation()!;
     httpRequest.mockImplementation(async (options) => {
       if (options.url.endsWith("/records") && options.qs?.sort) {
@@ -151,7 +140,7 @@ describe("LoadOptions.getRows", () => {
 
   it("wraps a failed retry after a type change in NodeApiError", async () => {
     await LoadOptions.getCollections.call(context);
-    collections.posts = { id: "recreated_posts_id", type: "view" };
+    collectionTypes.posts = "view";
     const recordsHandler = httpRequest.getMockImplementation()!;
     httpRequest.mockImplementation(async (options) => {
       if (options.url.endsWith("/records")) throw new Error("Forbidden");
@@ -159,59 +148,6 @@ describe("LoadOptions.getRows", () => {
     });
 
     await expect(LoadOptions.getRows.call(context)).rejects.toBeInstanceOf(NodeApiError);
-    expect(requestsTo(/\/records$/)).toHaveLength(2);
-  });
-
-  it("reloads with sorting when a cached view was re-created as a base collection", async () => {
-    collections.posts = { id: "posts_view_id", type: "view" };
-    await LoadOptions.getCollections.call(context);
-    collections.posts = { id: "recreated_posts_id", type: "base" };
-    const recordsHandler = httpRequest.getMockImplementation()!;
-    httpRequest.mockImplementation(async (options) => {
-      if (options.url.endsWith("/records")) {
-        const name = options.qs?.sort ? "Newest" : "Oldest";
-        return { items: [{ id: "abc", collectionId: "recreated_posts_id", name }] };
-      }
-      return await recordsHandler(options);
-    });
-
-    const options = await LoadOptions.getRows.call(context);
-    await LoadOptions.getRows.call(context);
-
-    expect(options).toEqual([{ name: "Newest", value: "abc" }]);
-    expect(requestsTo(/\/api\/collections\/posts$/)).toHaveLength(1);
-    expect(requestsTo(/\/records$/).map((request) => request.qs)).toEqual([
-      { perPage: 250, skipTotal: true },
-      { sort: "-@rowid", perPage: 250, skipTotal: true },
-      { sort: "-@rowid", perPage: 250, skipTotal: true },
-    ]);
-  });
-
-  it("only updates the cache when a collection was re-created with the same type", async () => {
-    await LoadOptions.getCollections.call(context);
-    collections.posts = { id: "recreated_posts_id", type: "base" };
-
-    await LoadOptions.getRows.call(context);
-    await LoadOptions.getRows.call(context);
-
-    expect(requestsTo(/\/api\/collections\/posts$/)).toHaveLength(1);
-    expect(requestsTo(/\/records$/)).toHaveLength(2);
-  });
-
-  it("doesn't re-check the type after a retry already loaded the re-created collection", async () => {
-    await LoadOptions.getCollections.call(context);
-    collections.posts = { id: "recreated_posts_id", type: "view" };
-    const recordsHandler = httpRequest.getMockImplementation()!;
-    httpRequest.mockImplementation(async (options) => {
-      if (options.url.endsWith("/records") && options.qs?.sort) {
-        throw Object.assign(new Error("Bad Request"), { response: { status: 400 } });
-      }
-      return await recordsHandler(options);
-    });
-
-    await LoadOptions.getRows.call(context);
-
-    expect(requestsTo(/\/api\/collections\/posts$/)).toHaveLength(1);
     expect(requestsTo(/\/records$/)).toHaveLength(2);
   });
 });
