@@ -13,7 +13,7 @@ interface MockTriggerFunctions {
   getCredentials: ReturnType<typeof vi.fn>;
   getNodeParameter: ReturnType<typeof vi.fn>;
   helpers: {
-    httpRequestWithAuthentication: ReturnType<typeof vi.fn>;
+    httpRequest: ReturnType<typeof vi.fn>;
     returnJsonArray: ReturnType<typeof vi.fn>;
   };
   emit: ReturnType<typeof vi.fn>;
@@ -38,10 +38,16 @@ describe("PocketbaseTrigger", () => {
     vi.clearAllMocks();
     node = new PocketbaseTrigger();
     triggerFunctions = {
-      getCredentials: vi.fn().mockResolvedValue({ url: "http://localhost:8090" }),
+      getCredentials: vi.fn().mockResolvedValue({
+        url: "http://localhost:8090",
+        username: "admin@example.com",
+        password: "secret",
+      }),
       getNodeParameter: vi.fn(),
       helpers: {
-        httpRequestWithAuthentication: vi.fn(),
+        httpRequest: vi.fn(async (options: { url: string }) =>
+          options.url.endsWith("/auth-with-password") ? { token: "test-token" } : {},
+        ),
         returnJsonArray: vi.fn((data: unknown) => [{ json: data }]),
       },
       emit: vi.fn(),
@@ -79,17 +85,22 @@ describe("PocketbaseTrigger", () => {
     )![1];
     await pbConnectCallback({ data: JSON.stringify({ clientId: "mock-client-id" }) });
 
-    expect(triggerFunctions.helpers.httpRequestWithAuthentication).toHaveBeenCalledWith(
-      "pocketbaseHttpApi",
-      {
-        method: "POST",
-        url: "http://localhost:8090/api/realtime",
-        body: {
-          clientId: "mock-client-id",
-          subscriptions: ["posts"],
-        },
+    // The credential has no `authenticate` property, so the subscription must carry its own token.
+    // Without it PocketBase treats the client as a guest and never delivers events for locked collections.
+    expect(triggerFunctions.helpers.httpRequest).toHaveBeenCalledWith({
+      method: "POST",
+      url: "http://localhost:8090/api/collections/_superusers/auth-with-password",
+      body: { identity: "admin@example.com", password: "secret" },
+    });
+    expect(triggerFunctions.helpers.httpRequest).toHaveBeenCalledWith({
+      method: "POST",
+      url: "http://localhost:8090/api/realtime",
+      headers: { Authorization: "test-token" },
+      body: {
+        clientId: "mock-client-id",
+        subscriptions: ["posts"],
       },
-    );
+    });
   });
 
   it("should emit data on matching event", async () => {

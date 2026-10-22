@@ -143,7 +143,7 @@ export class PocketbaseHttp implements INodeType {
         description:
           'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
         typeOptions: {
-          loadOptionsDependsOn: ["resource", "parameters.fields"],
+          loadOptionsDependsOn: ["resource"],
           loadOptionsMethod: "getRows",
         },
         default: "",
@@ -158,12 +158,22 @@ export class PocketbaseHttp implements INodeType {
         name: "parameters",
         type: "collection",
         default: {},
+        displayOptions: {
+          show: {
+            operation: ["search", "view", "create", "update"],
+          },
+        },
         options: [
           {
             displayName: "All Elements",
             name: "allElements",
             type: "boolean",
             default: false,
+            displayOptions: {
+              show: {
+                "/operation": ["search"],
+              },
+            },
           },
           {
             displayName: "Elements per Page",
@@ -173,6 +183,11 @@ export class PocketbaseHttp implements INodeType {
               minValue: 1,
             },
             default: 30,
+            displayOptions: {
+              show: {
+                "/operation": ["search"],
+              },
+            },
             routing: {
               send: {
                 type: "query",
@@ -190,7 +205,13 @@ export class PocketbaseHttp implements INodeType {
             type: "multiOptions",
             default: [],
             typeOptions: {
+              loadOptionsDependsOn: ["resource"],
               loadOptionsMethod: "getRelations",
+            },
+            displayOptions: {
+              show: {
+                "/operation": ["search", "view", "create", "update"],
+              },
             },
             routing: {
               request: {
@@ -209,9 +230,15 @@ export class PocketbaseHttp implements INodeType {
             name: "fields",
             type: "multiOptions",
             typeOptions: {
+              loadOptionsDependsOn: ["resource"],
               loadOptionsMethod: "getFields",
             },
             default: [],
+            displayOptions: {
+              show: {
+                "/operation": ["search", "view", "create", "update"],
+              },
+            },
             routing: {
               request: {
                 qs: {
@@ -225,6 +252,11 @@ export class PocketbaseHttp implements INodeType {
             name: "filter",
             type: "string",
             default: "",
+            displayOptions: {
+              show: {
+                "/operation": ["search"],
+              },
+            },
             routing: {
               send: {
                 type: "query",
@@ -232,7 +264,6 @@ export class PocketbaseHttp implements INodeType {
               },
             },
           },
-
           {
             displayName: "Page",
             name: "page",
@@ -241,6 +272,11 @@ export class PocketbaseHttp implements INodeType {
               minValue: 1,
             },
             default: 1,
+            displayOptions: {
+              show: {
+                "/operation": ["search"],
+              },
+            },
             routing: {
               send: {
                 type: "query",
@@ -253,6 +289,11 @@ export class PocketbaseHttp implements INodeType {
             name: "sort",
             type: "string",
             default: "",
+            displayOptions: {
+              show: {
+                "/operation": ["search"],
+              },
+            },
             routing: {
               send: {
                 type: "query",
@@ -296,10 +337,6 @@ export class PocketbaseHttp implements INodeType {
             operation: ["create", "update"],
             bodyType: ["fields"],
           },
-        },
-        typeOptions: {
-          loadOptionsDependsOn: ["resource"],
-          loadOptionsMethod: "getFields",
         },
         default: [],
         description: "Add fields to be sent. To clear a field, use an expression: <code>={{ null }}</code>.",
