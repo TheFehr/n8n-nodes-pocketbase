@@ -138,11 +138,23 @@ jobs:
         if: steps.should_release.outputs.value == 'true'
         run: npm run test:pipeline
 
-      - name: Bump patch version and changelog
+      # release-it only computes the version here (it prints the bump its
+      # conventional-changelog preset recommends since the last tag: patch by
+      # default, minor for feat:, major for a "!" or BREAKING CHANGE footer).
+      # Committing, tagging and publishing stay with this workflow.
+      - name: Bump version and changelog
         if: steps.should_release.outputs.value == 'true'
         id: bump
         run: |
-          npm version patch --no-git-tag-version --allow-same-version > /dev/null
+          RECOMMENDED=$(npx release-it --ci --release-version \
+            --no-git.commit --no-git.tag --no-git.push \
+            --no-git.requireCleanWorkingDir --no-git.requireUpstream --no-git.requireBranch \
+            --no-npm --no-github.release | tail -1)
+          if ! [[ "$RECOMMENDED" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "release-it did not return a version: '$RECOMMENDED'"
+            exit 1
+          fi
+          npm version "$RECOMMENDED" --no-git-tag-version --allow-same-version > /dev/null
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "Bumped to $NEW_VERSION"
           npx auto-changelog -p
