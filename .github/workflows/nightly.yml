@@ -75,6 +75,22 @@ jobs:
           git tag "$VERSION"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$VERSION"
 
+      # GitHub generates the notes: each merged PR is listed "by @author", and
+      # first-time contributors get a "New Contributors" section (see
+      # .github/release.yml). The start tag is passed explicitly because
+      # GitHub would otherwise diff against the last *published release*,
+      # which can be far behind the last tag.
+      - name: Create GitHub release
+        if: steps.release_check.outputs.is_release == 'true'
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "$VERSION^")
+          echo "Releasing $VERSION (notes since $PREVIOUS_TAG)"
+          gh release create "$VERSION" --verify-tag --title "Release $VERSION" \
+            --generate-notes --notes-start-tag "$PREVIOUS_TAG"
+
       # update-versions.ts --check exits 0 (up to date), 1 (confirmed
       # drift), or 2 (script failure, e.g. a transient GitHub/npm API
       # error - not evidence of drift). Only exit 1 sets updates_found;

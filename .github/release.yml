@@ -1,0 +1,5 @@
+changelog:
+  exclude:
+    labels:
+      # The automated release PRs only bump the version and changelog.
+      - release
