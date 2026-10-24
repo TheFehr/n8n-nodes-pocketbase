@@ -1,4 +1,10 @@
-import type { IDataObject, ILoadOptionsFunctions, INodePropertyOptions } from "n8n-workflow";
+import { NodeApiError } from "n8n-workflow";
+import type {
+  IDataObject,
+  ILoadOptionsFunctions,
+  INodePropertyOptions,
+  JsonObject,
+} from "n8n-workflow";
 import { fetchPocketbaseToken } from "./GenericFunctions";
 
 export interface PocketBaseField {
@@ -23,6 +29,49 @@ export interface PocketBaseField {
   minSelect?: number;
 }
 
+interface PocketBaseCollection {
+  name: string;
+  type: string;
+  fields: PocketBaseField[];
+}
+
+const collectionTypes = new Map<string, string>();
+
+export function _resetCollectionTypeCacheForTesting(): void {
+  collectionTypes.clear();
+}
+
+function collectionKey(url: string, collection: string): string {
+  return `${url}::${collection}`;
+}
+
+async function fetchCollection(
+  this: ILoadOptionsFunctions,
+  url: string,
+  token: string,
+  collection: string,
+): Promise<PocketBaseCollection> {
+  const result = (await this.helpers.httpRequest({
+    url: `${url}/api/collections/${collection}`,
+    method: "GET",
+    headers: { Authorization: token },
+  })) as PocketBaseCollection;
+  collectionTypes.set(collectionKey(url, collection), result.type);
+  return result;
+}
+
+async function getCollectionType(
+  this: ILoadOptionsFunctions,
+  url: string,
+  token: string,
+  collection: string,
+): Promise<string> {
+  return (
+    collectionTypes.get(collectionKey(url, collection)) ??
+    (await fetchCollection.call(this, url, token, collection)).type
+  );
+}
+
 async function loadPocketBaseFields(
   this: ILoadOptionsFunctions,
   collectionName: string | null = null,
@@ -38,12 +87,7 @@ async function loadPocketBaseFields(
     credentials.username as string,
     credentials.password as string,
   );
-  // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- httpRequestWithAuthentication relies on the credential's `authenticate` property, which this project deliberately removed (see commit 8003c58): n8n doesn't reliably invoke it during scheduled executions, causing 403s once the stored JWT expired. fetchPocketbaseToken replaces it with a reliable, cache-aware token fetch.
-  const { fields } = (await this.helpers.httpRequest({
-    url: `${normalizedUrl}/api/collections/${resource}`,
-    method: "GET",
-    headers: { Authorization: token },
-  })) as { fields: PocketBaseField[] };
+  const { fields } = await fetchCollection.call(this, normalizedUrl, token, resource);
 
   return fields;
 }
@@ -81,23 +125,27 @@ export const LoadOptions = {
       credentials.password as string,
     );
 
-    const items: { name: string }[] = [];
+    const items: { name: string; type: string }[] = [];
     let page: number = 1;
     let totalPages: number = 0;
 
     do {
-      // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- see comment in loadPocketBaseFields above
+      // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- httpRequestWithAuthentication relies on the credential's `authenticate` property, which this project deliberately removed (see commit 8003c58): n8n doesn't reliably invoke it during scheduled executions, causing 403s once the stored JWT expired. fetchPocketbaseToken replaces it with a reliable, cache-aware token fetch.
       const { items: pageItems, totalPages: pageTotalPages } = (await this.helpers.httpRequest({
         url: `${normalizedUrl}/api/collections`,
         method: "GET",
         qs: { page },
         headers: { Authorization: token },
-      })) as { items: { name: string }[]; totalPages: number };
+      })) as { items: { name: string; type: string }[]; totalPages: number };
 
       items.push(...pageItems);
       totalPages = pageTotalPages;
       page++;
     } while (page <= totalPages);
+
+    items.forEach(({ name, type }) =>
+      collectionTypes.set(collectionKey(normalizedUrl, name), type),
+    );
 
     return items.map(({ name }) => ({ name, value: name })) as INodePropertyOptions[];
   },
@@ -155,24 +203,32 @@ export const LoadOptions = {
       credentials.password as string,
     );
 
-    const items: IDataObject[] = [];
-    let page: number = 1;
-    let totalPages: number = 1;
-    const maxPages = 5; // Load up to 5 pages for the dropdown
-
-    do {
-      // eslint-disable-next-line @n8n/community-nodes/no-http-request-with-manual-auth -- see comment in loadPocketBaseFields above
-      const { items: pageItems, totalPages: pageTotalPages } = (await this.helpers.httpRequest({
+    const listRecords = async (type: string): Promise<IDataObject[]> => {
+      const { items } = (await this.helpers.httpRequest({
         url: `${normalizedUrl}/api/collections/${resource}/records`,
         method: "GET",
-        qs: { sort: "-created", page, perPage: 50 },
+        qs: { ...(type === "view" ? {} : { sort: "-@rowid" }), perPage: 250, skipTotal: true },
         headers: { Authorization: token },
-      })) as { items: IDataObject[]; totalPages: number };
+      })) as { items: IDataObject[] };
+      return items;
+    };
 
-      items.push(...pageItems);
-      totalPages = pageTotalPages;
-      page++;
-    } while (page <= totalPages && page <= maxPages);
+    const type = await getCollectionType.call(this, normalizedUrl, token, resource);
+    let items: IDataObject[];
+    try {
+      items = await listRecords(type);
+    } catch (error) {
+      const currentType = await fetchCollection.call(this, normalizedUrl, token, resource).then(
+        (collection) => collection.type,
+        () => type,
+      );
+      if (currentType === type) {
+        throw new NodeApiError(this.getNode(), error as JsonObject);
+      }
+      items = await listRecords(currentType).catch((retryError: unknown) => {
+        throw new NodeApiError(this.getNode(), retryError as JsonObject);
+      });
+    }
 
     if (items.length === 0) {
       return [
