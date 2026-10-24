@@ -33,6 +33,10 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 
 Nearly all PocketBase operations for Base collections should be implemented.
 
+### Download Files
+
+Turn on **Download Files** under **Parameters** of View or List/Search to get the files of each element as binary data on its item. A single-file field becomes a binary field of the same name, a multi-file field becomes `<field>_0`, `<field>_1` and so on. Protected files are supported. To download only some files, pick the fields with **Field Names** (include `id`).
+
 ### Trigger Node (Beta)
 
 This node allows you to subscribe to PocketBase events (create, update, delete) in real-time via Server-Sent Events (SSE).
