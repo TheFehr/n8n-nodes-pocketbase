@@ -70,11 +70,14 @@ jobs:
     permissions:
       # Required to mint an OIDC token for npm provenance attestation.
       id-token: write
-      # Scoped down from the default (write) for least-privilege publishing.
-      contents: read
+      # Needed to create the GitHub release once the package is published.
+      contents: write
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The release notes start at the previous tag.
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -98,3 +101,23 @@ jobs:
           npm run release
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # GitHub generates the notes: each merged PR is listed "by @author", and
+      # first-time contributors get a "New Contributors" section (see
+      # .github/release.yml). The start tag is passed explicitly because
+      # GitHub would otherwise diff against the last *published release*,
+      # which can be far behind the last tag. Skipped if the release exists
+      # (a rerun, or a local `npm run release`, which creates it itself).
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists"
+            exit 0
+          fi
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^")
+          echo "Releasing $GITHUB_REF_NAME (notes since $PREVIOUS_TAG)"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "Release $GITHUB_REF_NAME" \
+            --generate-notes --notes-start-tag "$PREVIOUS_TAG"

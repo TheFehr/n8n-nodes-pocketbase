@@ -72,7 +72,16 @@ jobs:
           echo "Tagging release $VERSION"
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git tag "$VERSION"
+          # A rerun after a failed push or publish finds the tag already there:
+          # accept it only if it is on this commit, so the run can continue.
+          if git rev-parse -q --verify "refs/tags/$VERSION" > /dev/null; then
+            [ "$(git rev-list -n1 "$VERSION")" = "$(git rev-parse HEAD)" ] || {
+              echo "Tag $VERSION already exists on a different commit"
+              exit 1
+            }
+          else
+            git tag "$VERSION"
+          fi
           git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$VERSION"
 
       # update-versions.ts --check exits 0 (up to date), 1 (confirmed
@@ -122,11 +131,23 @@ jobs:
         if: steps.should_release.outputs.value == 'true'
         run: npm run test:pipeline
 
-      - name: Bump patch version and changelog
+      # release-it only computes the version here (it prints the bump its
+      # conventional-changelog preset recommends since the last tag: patch by
+      # default, minor for feat:, major for a "!" or BREAKING CHANGE footer).
+      # Committing, tagging and publishing stay with this workflow.
+      - name: Bump version and changelog
         if: steps.should_release.outputs.value == 'true'
         id: bump
         run: |
-          npm version patch --no-git-tag-version --allow-same-version > /dev/null
+          RECOMMENDED=$(npx release-it --ci --release-version \
+            --no-git.commit --no-git.tag --no-git.push \
+            --no-git.requireCleanWorkingDir --no-git.requireUpstream --no-git.requireBranch \
+            --no-npm --no-github.release | tail -1)
+          if ! [[ "$RECOMMENDED" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "release-it did not return a version: '$RECOMMENDED'"
+            exit 1
+          fi
+          npm version "$RECOMMENDED" --no-git-tag-version --allow-same-version > /dev/null
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "Bumped to $NEW_VERSION"
           npx auto-changelog -p
