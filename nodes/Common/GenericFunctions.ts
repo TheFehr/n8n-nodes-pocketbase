@@ -4,8 +4,11 @@ import {
   IExecutePaginationFunctions,
   IExecuteSingleFunctions,
   IHttpRequestOptions,
+  IN8nHttpFullResponse,
   INodeExecutionData,
+  NodeOperationError,
 } from "n8n-workflow";
+import type { Readable } from "node:stream";
 import { prepareRequestBody } from "./RequestBodyFunctions";
 
 interface TokenCacheEntry {
@@ -160,11 +163,161 @@ export async function pagination(
     }
 
     const items = responseBody.items as IDataObject[];
-    executions.push(...items.map((item) => ({ json: item })));
+    const records = items.map((item) => ({ json: item }));
+    executions.push(...(await downloadRecordFiles.call(this, records)));
 
     hasMore = allIsActive && items.length >= readPerPage(responseBody);
     page++;
   }
 
   return executions;
+}
+
+interface FileTokenEntry {
+  authToken: string;
+  token: string;
+  expiresAtMs: number;
+}
+
+const fileTokens = new Map<string, FileTokenEntry>();
+const pendingFileTokens = new Map<string, Promise<string>>();
+const fileFieldsCache = new Map<string, { executionId: string; fileFields: Promise<string[]> }>();
+
+export function _resetFileCachesForTesting(): void {
+  fileTokens.clear();
+  pendingFileTokens.clear();
+  fileFieldsCache.clear();
+}
+
+async function requestFileToken(
+  this: IExecuteSingleFunctions,
+  url: string,
+  authToken: string,
+): Promise<string> {
+  const { token } = (await this.helpers.httpRequest({
+    method: "POST",
+    url: `${url}/api/files/token`,
+    headers: { Authorization: authToken },
+  })) as { token: string };
+  fileTokens.set(url, { authToken, token, expiresAtMs: parseJwtExpiry(token) });
+  return token;
+}
+
+async function fetchFileToken(
+  this: IExecuteSingleFunctions,
+  url: string,
+  authToken: string,
+): Promise<string> {
+  const cached = fileTokens.get(url);
+  if (cached?.authToken === authToken && Date.now() < cached.expiresAtMs - 60_000) {
+    return cached.token;
+  }
+  let pending = pendingFileTokens.get(authToken);
+  if (!pending) {
+    pending = requestFileToken
+      .call(this, url, authToken)
+      .finally(() => pendingFileTokens.delete(authToken));
+    pendingFileTokens.set(authToken, pending);
+  }
+  return pending;
+}
+
+function fetchFileFields(
+  this: IExecuteSingleFunctions,
+  url: string,
+  authToken: string,
+  collection: string,
+): Promise<string[]> {
+  const key = `${url}::${collection}`;
+  const executionId = this.getExecutionId();
+  const cached = fileFieldsCache.get(key);
+  if (cached?.executionId === executionId) {
+    return cached.fileFields;
+  }
+  const fileFields = this.helpers
+    .httpRequest({
+      method: "GET",
+      url: `${url}/api/collections/${collection}`,
+      headers: { Authorization: authToken },
+    })
+    .then(({ fields }: { fields: { name: string; type: string }[] }) =>
+      fields.filter(({ type }) => type === "file").map(({ name }) => name),
+    );
+  fileFieldsCache.set(key, { executionId, fileFields });
+  fileFields.catch(() => {
+    if (fileFieldsCache.get(key)?.fileFields === fileFields) {
+      fileFieldsCache.delete(key);
+    }
+  });
+  return fileFields;
+}
+
+export async function downloadRecordFiles(
+  this: IExecuteSingleFunctions,
+  items: INodeExecutionData[],
+): Promise<INodeExecutionData[]> {
+  if (!this.getNodeParameter("parameters.downloadFiles", false) || items.length === 0) {
+    return items;
+  }
+
+  const credentials = await this.getCredentials("pocketbaseHttpApi");
+  const url = (credentials.url as string).replace(/\/$/, "");
+  const collection = this.getNodeParameter("resource") as string;
+  const authToken = await fetchPocketbaseToken(
+    (opts) => this.helpers.httpRequest(opts),
+    url,
+    credentials.username as string,
+    credentials.password as string,
+  );
+  const fileFields = await fetchFileFields.call(this, url, authToken, collection);
+
+  const downloadFile = async (recordId: string, fileName: string) => {
+    const token = await fetchFileToken.call(this, url, authToken);
+    const response = (await this.helpers.httpRequest({
+      method: "GET",
+      url: `${url}/api/files/${collection}/${recordId}/${encodeURIComponent(fileName)}`,
+      qs: { token },
+      encoding: "stream",
+      returnFullResponse: true,
+    })) as IN8nHttpFullResponse;
+    return await this.helpers.prepareBinaryData(
+      response.body as Readable,
+      fileName,
+      response.headers["content-type"] as string,
+    );
+  };
+
+  return await Promise.all(
+    items.map(async ({ json }) => {
+      const files = fileFields
+        .filter((field) => Object.prototype.hasOwnProperty.call(json, field) && json[field])
+        .flatMap((field) =>
+          Array.isArray(json[field])
+            ? (json[field] as string[]).map((fileName, index) => [`${field}_${index}`, fileName])
+            : [[field, json[field] as string]],
+        );
+      if (files.length > 0 && !json.id) {
+        throw new NodeOperationError(this.getNode(), 'Add "id" to Field Names to download files');
+      }
+      const keys = files.map(([key]) => key);
+      const duplicate = keys.find((key, index) => keys.indexOf(key) !== index);
+      if (duplicate) {
+        throw new NodeOperationError(
+          this.getNode(),
+          `Two file fields would both be saved as binary field "${duplicate}"`,
+        );
+      }
+      const binary = await Promise.all(
+        files.map(async ([key, fileName]) => [
+          key,
+          await downloadFile(json.id as string, fileName),
+        ]),
+      );
+      return {
+        json,
+        binary: Object.fromEntries(binary),
+        pairedItem: { item: this.getItemIndex() },
+      };
+    }),
+  );
 }
