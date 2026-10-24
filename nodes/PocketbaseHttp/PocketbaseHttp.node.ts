@@ -179,8 +179,11 @@ export class PocketbaseHttp implements INodeType {
             displayName: "Elements per Page",
             name: "elementsPerPage",
             type: "number",
+            description:
+              "Maximum is 1000, the most PocketBase returns in one page. To get every element, turn on All Elements instead.",
             typeOptions: {
               minValue: 1,
+              maxValue: 1000,
             },
             default: 30,
             displayOptions: {
