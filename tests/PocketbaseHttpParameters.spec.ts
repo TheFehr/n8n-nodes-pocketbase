@@ -59,6 +59,14 @@ describe("PocketbaseHttp parameters", () => {
     expect(visibleOptions("delete")).toEqual([]);
   });
 
+  it("limits Elements per Page to the range PocketBase accepts", () => {
+    const elementsPerPage = (parametersCollection.options as INodeProperties[]).find(
+      (option) => option.name === "elementsPerPage",
+    )!;
+
+    expect(elementsPerPage.typeOptions).toMatchObject({ minValue: 1, maxValue: 1000 });
+  });
+
   it("reloads collection-dependent dropdowns when the collection changes", () => {
     const dependsOn = (property: INodeProperties) => property.typeOptions?.loadOptionsDependsOn;
     const elementId = description.properties.find((property) => property.name === "elementId")!;
