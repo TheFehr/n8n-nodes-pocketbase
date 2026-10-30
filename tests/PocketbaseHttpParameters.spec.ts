@@ -51,7 +51,11 @@ describe("PocketbaseHttp parameters", () => {
     expect(visibleOptions("search")).toEqual(allOptions);
   });
 
-  it.each(["view", "create", "update"])("shows only expand and fields for %s", (operation) => {
+  it("shows only download files, expand and fields for view", () => {
+    expect(visibleOptions("view")).toEqual(["downloadFiles", "fields", "relation"]);
+  });
+
+  it.each(["create", "update"])("shows only expand and fields for %s", (operation) => {
     expect(visibleOptions(operation)).toEqual(["fields", "relation"]);
   });
 
@@ -75,5 +79,11 @@ describe("PocketbaseHttp parameters", () => {
     expect(dependsOn(elementId)).toEqual(["resource"]);
     expect(dependsOn(options.find((option) => option.name === "relation")!)).toEqual(["resource"]);
     expect(dependsOn(options.find((option) => option.name === "fields")!)).toEqual(["resource"]);
+  });
+
+  it("leaves Download Files off by default", () => {
+    const options = parametersCollection.options as INodeProperties[];
+
+    expect(options.find((option) => option.name === "downloadFiles")!.default).toBe(false);
   });
 });
