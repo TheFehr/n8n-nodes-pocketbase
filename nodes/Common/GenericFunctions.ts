@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   DeclarativeRestApiSettings,
   IDataObject,
@@ -14,6 +15,7 @@ interface TokenCacheEntry {
 }
 
 const tokenCache = new Map<string, TokenCacheEntry>();
+const pendingLogins = new Map<string, Promise<string>>();
 
 function parseJwtExpiry(jwtToken: string): number {
   try {
@@ -28,6 +30,23 @@ function parseJwtExpiry(jwtToken: string): number {
 
 export function _resetTokenCacheForTesting(): void {
   tokenCache.clear();
+  pendingLogins.clear();
+}
+
+async function loginToPocketbase(
+  httpRequest: (options: IHttpRequestOptions) => Promise<unknown>,
+  url: string,
+  username: string,
+  password: string,
+  cacheKey: string,
+): Promise<string> {
+  const { token } = (await httpRequest({
+    method: "POST",
+    url: `${url}/api/collections/_superusers/auth-with-password`,
+    body: { identity: username, password },
+  })) as { token: string };
+  tokenCache.set(cacheKey, { token, expiresAtMs: parseJwtExpiry(token) });
+  return token;
 }
 
 export async function fetchPocketbaseToken(
@@ -36,18 +55,21 @@ export async function fetchPocketbaseToken(
   username: string,
   password: string,
 ): Promise<string> {
-  const cacheKey = `${url}::${username}`;
+  const cacheKey = createHash("sha256")
+    .update(JSON.stringify([url, username, password]))
+    .digest("hex");
   const cached = tokenCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAtMs - 60_000) {
     return cached.token;
   }
-  const { token } = (await httpRequest({
-    method: "POST",
-    url: `${url}/api/collections/_superusers/auth-with-password`,
-    body: { identity: username, password },
-  })) as { token: string };
-  tokenCache.set(cacheKey, { token, expiresAtMs: parseJwtExpiry(token) });
-  return token;
+  let pending = pendingLogins.get(cacheKey);
+  if (!pending) {
+    pending = loginToPocketbase(httpRequest, url, username, password, cacheKey).finally(() =>
+      pendingLogins.delete(cacheKey),
+    );
+    pendingLogins.set(cacheKey, pending);
+  }
+  return pending;
 }
 
 export async function authenticatePreSend(

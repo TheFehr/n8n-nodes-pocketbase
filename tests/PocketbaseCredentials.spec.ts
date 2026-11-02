@@ -86,6 +86,73 @@ describe("fetchPocketbaseToken", () => {
     ).rejects.toThrow("connect ECONNREFUSED");
   });
 
+  it("fetches a new token when the password changes", async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600;
+    const url = "http://rotate.local";
+    mockHttpRequest.mockResolvedValueOnce({ token: buildJwt({ exp: futureExp, n: 1 }) });
+    mockHttpRequest.mockResolvedValueOnce({ token: buildJwt({ exp: futureExp, n: 2 }) });
+
+    const first = await fetchPocketbaseToken(mockHttpRequest, url, "admin", "old");
+    const second = await fetchPocketbaseToken(mockHttpRequest, url, "admin", "new");
+
+    expect(second).not.toBe(first);
+    expect(mockHttpRequest).toHaveBeenCalledTimes(2);
+    expect(mockHttpRequest).toHaveBeenLastCalledWith(
+      expect.objectContaining({ body: { identity: "admin", password: "new" } }),
+    );
+  });
+
+  it("does not share tokens between credentials with different passwords", async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600;
+    const url = "http://shared.local";
+    const tokenA = buildJwt({ exp: futureExp, n: 1 });
+    const tokenB = buildJwt({ exp: futureExp, n: 2 });
+    mockHttpRequest.mockResolvedValueOnce({ token: tokenA });
+    mockHttpRequest.mockResolvedValueOnce({ token: tokenB });
+
+    await fetchPocketbaseToken(mockHttpRequest, url, "admin", "a");
+    await fetchPocketbaseToken(mockHttpRequest, url, "admin", "b");
+    const cachedA = await fetchPocketbaseToken(mockHttpRequest, url, "admin", "a");
+    const cachedB = await fetchPocketbaseToken(mockHttpRequest, url, "admin", "b");
+
+    expect(cachedA).toBe(tokenA);
+    expect(cachedB).toBe(tokenB);
+    expect(mockHttpRequest).toHaveBeenCalledTimes(2);
+  });
+
+  it("logs in once for concurrent calls", async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600;
+    const freshToken = buildJwt({ exp: futureExp });
+    mockHttpRequest.mockResolvedValue({ token: freshToken });
+
+    const tokens = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        fetchPocketbaseToken(mockHttpRequest, "http://concurrent.local", "admin", "pass"),
+      ),
+    );
+
+    expect(tokens).toEqual(Array(20).fill(freshToken));
+    expect(mockHttpRequest).toHaveBeenCalledOnce();
+  });
+
+  it("does not cache a failed login", async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600;
+    const url = "http://retry.local";
+    const freshToken = buildJwt({ exp: futureExp });
+    mockHttpRequest.mockRejectedValueOnce(new Error("Failed to authenticate"));
+    mockHttpRequest.mockResolvedValueOnce({ token: freshToken });
+
+    const failed = await Promise.allSettled([
+      fetchPocketbaseToken(mockHttpRequest, url, "admin", "pass"),
+      fetchPocketbaseToken(mockHttpRequest, url, "admin", "pass"),
+    ]);
+    const retried = await fetchPocketbaseToken(mockHttpRequest, url, "admin", "pass");
+
+    expect(failed.map((result) => result.status)).toEqual(["rejected", "rejected"]);
+    expect(retried).toBe(freshToken);
+    expect(mockHttpRequest).toHaveBeenCalledTimes(2);
+  });
+
   it("re-fetches every call when the token has no exp claim", async () => {
     const noExpToken = buildJwt({});
     mockHttpRequest.mockResolvedValue({ token: noExpToken });
