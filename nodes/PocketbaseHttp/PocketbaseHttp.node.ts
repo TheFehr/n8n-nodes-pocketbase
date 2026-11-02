@@ -1,6 +1,7 @@
 import { NodeConnectionTypes, type INodeType, type INodeTypeDescription } from "n8n-workflow";
 import {
   authenticatePreSend,
+  downloadRecordFiles,
   pagination,
   recordCreatePreSendAction,
   recordUpdatePreSendAction,
@@ -129,6 +130,9 @@ export class PocketbaseHttp implements INodeType {
               send: {
                 preSend: [authenticatePreSend, recordViewPreSendAction],
               },
+              output: {
+                postReceive: [downloadRecordFiles],
+              },
             },
           },
         ],
@@ -172,6 +176,19 @@ export class PocketbaseHttp implements INodeType {
             displayOptions: {
               show: {
                 "/operation": ["search"],
+              },
+            },
+          },
+          {
+            displayName: "Download Files",
+            name: "downloadFiles",
+            type: "boolean",
+            default: false,
+            description:
+              'Whether to add the files of each element as binary data, one binary field per file named after its field (multi-file fields get "_0", "_1", …). Field Names limits which files are downloaded.',
+            displayOptions: {
+              show: {
+                "/operation": ["search", "view"],
               },
             },
           },
