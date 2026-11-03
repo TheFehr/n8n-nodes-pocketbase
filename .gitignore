@@ -12,3 +12,5 @@ yarn.lock
 .tool-versions
 .junie
 custom-nodes
+.claude/worktrees/
+.claude/settings.local.json
