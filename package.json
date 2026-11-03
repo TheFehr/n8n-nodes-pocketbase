@@ -75,17 +75,17 @@
       "majorOffset": 2
     },
     "readme": "Last tested with n8n {n8n} and PocketBase {upstream}.",
-    "pins": [
-      {
+    "pins": {
+      "pocketbase": {
         "file": "docker-compose.test.yml",
         "template": "image: ghcr.io/muchobien/pocketbase:{version}",
         "from": "upstream"
       },
-      {
+      "n8n": {
         "file": "docker-compose.test.yml",
         "template": "image: n8nio/n8n:{version}",
         "from": "n8n"
       }
-    ]
+    }
   }
 }
