@@ -1,183 +1,20 @@
-name: Nightly Compatibility Check & Release
+name: Nightly compatibility
 
 on:
-  push:
-    branches:
-      - main
   schedule:
     - cron: "34 1 * * *"
-  # Manual runs always produce a release, even with no pending compatibility
-  # drift — use this to ship a patch release of whatever is currently on
-  # main (e.g. after merging feature/test PRs) without waiting for the
-  # nightly cron to find an n8n/PocketBase version bump.
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-compat
+  cancel-in-progress: false
+
 jobs:
-  check-and-run:
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-      pull-requests: write
-
-    steps:
-      - name: Generate Token
-        id: generate_token
-        uses: tibdex/github-app-token@v2
-        with:
-          app_id: ${{ secrets.APP_ID }}
-          private_key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - uses: actions/checkout@v7
-        with:
-          # Pinned so a manual workflow_dispatch run targeted at a non-main
-          # branch (selectable in the dispatch UI/CLI) can't create a
-          # release PR — or publish to npm — from unmerged/experimental
-          # commits. push/schedule events are always already on main.
-          ref: main
-          fetch-depth: 0 # Needed for auto-changelog to see full history and tags
-          persist-credentials: false
-          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
-
-      - name: Use Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-
-      - name: Install dependencies
-        run: npm ci
-
-      # A push to main only matters here if it's the just-merged release PR
-      # (see "Create Pull Request" below) - detected via its "release" label
-      # rather than the commit message, so a manually-edited merge title
-      # can't break detection. Any other push is a no-op for this job.
-      - name: Check if this push is the merged release PR
-        id: release_check
-        if: github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
-        run: |
-          HAS_RELEASE_LABEL=$(gh api "repos/${{ github.repository }}/commits/$(git rev-parse HEAD)/pulls" \
-            --jq '[.[] | select(.labels[].name == "release")] | length > 0')
-          echo "is_release=$HAS_RELEASE_LABEL" >> "$GITHUB_OUTPUT"
-
-      # Tags are an unprotected ref, so this push needs no bypass rights.
-      # Pushing it hands off to the existing tag-triggered publish.yml.
-      - name: Tag release commit
-        if: steps.release_check.outputs.is_release == 'true'
-        env:
-          GH_TOKEN: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "Tagging release $VERSION"
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          # A rerun after a failed push or publish finds the tag already there:
-          # accept it only if it is on this commit, so the run can continue.
-          if git rev-parse -q --verify "refs/tags/$VERSION" > /dev/null; then
-            [ "$(git rev-list -n1 "$VERSION")" = "$(git rev-parse HEAD)" ] || {
-              echo "Tag $VERSION already exists on a different commit"
-              exit 1
-            }
-          else
-            git tag "$VERSION"
-          fi
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$VERSION"
-
-      # update-versions.ts --check exits 0 (up to date), 1 (confirmed
-      # drift), or 2 (script failure, e.g. a transient GitHub/npm API
-      # error - not evidence of drift). Only exit 1 sets updates_found;
-      # exit 2 fails this step outright rather than being misread as drift.
-      - name: Check for updates
-        id: check_updates
-        if: github.event_name != 'push'
-        run: |
-          set +e
-          npm run version:check
-          CHECK_EXIT=$?
-          set -e
-          if [ $CHECK_EXIT -eq 0 ]; then
-            echo "updates_found=false" >> "$GITHUB_OUTPUT"
-          elif [ $CHECK_EXIT -eq 1 ]; then
-            echo "updates_found=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "version:check failed (exit $CHECK_EXIT) - treating as a script error, not confirmed drift"
-            exit $CHECK_EXIT
-          fi
-
-      # Manual runs (workflow_dispatch) always release, regardless of whether
-      # a compatibility drift was found; scheduled/cron runs only release
-      # when version:check above actually found something to update.
-      - name: Determine whether to release
-        id: should_release
-        if: github.event_name != 'push'
-        env:
-          UPDATES_FOUND: ${{ steps.check_updates.outputs.updates_found }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          if [ "$UPDATES_FOUND" = "true" ] || [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "value=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Update files
-        if: steps.check_updates.outputs.updates_found == 'true'
-        run: |
-          npm run version:update
-          npm install
-
-      - name: Run pipeline
-        if: steps.should_release.outputs.value == 'true'
-        run: npm run test:pipeline
-
-      # release-it only computes the version here (it prints the bump its
-      # conventional-changelog preset recommends since the last tag: patch by
-      # default, minor for feat:, major for a "!" or BREAKING CHANGE footer).
-      # Committing, tagging and publishing stay with this workflow.
-      - name: Bump version and changelog
-        if: steps.should_release.outputs.value == 'true'
-        id: bump
-        run: |
-          RECOMMENDED=$(npx release-it --ci --release-version \
-            --no-git.commit --no-git.tag --no-git.push \
-            --no-git.requireCleanWorkingDir --no-git.requireUpstream --no-git.requireBranch \
-            --no-npm --no-github.release | tail -1)
-          if ! [[ "$RECOMMENDED" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "release-it did not return a version: '$RECOMMENDED'"
-            exit 1
-          fi
-          npm version "$RECOMMENDED" --no-git-tag-version --allow-same-version > /dev/null
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          echo "Bumped to $NEW_VERSION"
-          npx auto-changelog -p
-          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Ensure release label exists
-        if: steps.should_release.outputs.value == 'true'
-        env:
-          GH_TOKEN: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
-        run: gh label create release --color 0e8a16 --description "Automated release PR" 2>/dev/null || true
-
-      - name: Create Pull Request
-        if: steps.should_release.outputs.value == 'true'
-        id: cpr
-        uses: peter-evans/create-pull-request@v8
-        with:
-          token: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
-          commit-message: "Release ${{ steps.bump.outputs.new_version }}"
-          title: "Release ${{ steps.bump.outputs.new_version }}"
-          body: "Automated release. Merging this PR tags the release and publishes ${{ steps.bump.outputs.new_version }} to npm."
-          branch: nightly-updates
-          base: main
-          delete-branch: true
-          sign-commits: true
-          labels: release
-
-      - name: Enable Auto-Merge
-        if: steps.cpr.outputs.pull-request-operation == 'created'
-        env:
-          GH_TOKEN: ${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr merge --auto --squash --subject "Release ${{ steps.bump.outputs.new_version }}" \
-            "${{ steps.cpr.outputs.pull-request-number }}"
+  nightly:
+    uses: TheFehr/n8n-node-tooling/.github/workflows/nightly-compat.yml@06416e10ca457b6b7adff963cf72d78cbe350d1f
+    secrets:
+      CLIENT_ID: ${{ secrets.CLIENT_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}

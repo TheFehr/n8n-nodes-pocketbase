@@ -6,25 +6,11 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Use Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-
-      - name: Install dependencies
-        run: "npm ci"
-
-      - name: Run lint
-        run: "npm run lint"
-
-      - name: Run integration tests
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "npm run test:pipeline"
+  ci:
+    uses: TheFehr/n8n-node-tooling/.github/workflows/ci.yml@06416e10ca457b6b7adff963cf72d78cbe350d1f
+    with:
+      integration: true

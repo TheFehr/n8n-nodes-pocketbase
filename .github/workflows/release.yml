@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    # Off the hour on purpose: everyone's "0 0 * * *" jobs queue at once and run late.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    uses: TheFehr/n8n-node-tooling/.github/workflows/release.yml@06416e10ca457b6b7adff963cf72d78cbe350d1f
+    secrets:
+      CLIENT_ID: ${{ secrets.CLIENT_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}

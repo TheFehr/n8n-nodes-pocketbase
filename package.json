@@ -29,8 +29,6 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:pipeline": "bash scripts/full-test.sh",
-    "version:update": "tsx scripts/update-versions.ts",
-    "version:check": "tsx scripts/update-versions.ts --check",
     "release": "n8n-node release",
     "prepublishOnly": "n8n-node prerelease"
   },
@@ -62,5 +60,32 @@
     ]
   },
   "pocketbaseVersion": "0.40.6",
-  "n8nWorkflowVersion": "2.45.4"
+  "n8nWorkflowVersion": "2.45.4",
+  "n8nNodeTooling": {
+    "upstream": {
+      "name": "PocketBase",
+      "source": {
+        "type": "github",
+        "repo": "pocketbase/pocketbase"
+      },
+      "track": {
+        "type": "field",
+        "name": "pocketbaseVersion"
+      },
+      "majorOffset": 2
+    },
+    "readme": "Last tested with n8n {n8n} and PocketBase {upstream}.",
+    "pins": {
+      "pocketbase": {
+        "file": "docker-compose.test.yml",
+        "template": "image: ghcr.io/muchobien/pocketbase:{version}",
+        "from": "upstream"
+      },
+      "n8n": {
+        "file": "docker-compose.test.yml",
+        "template": "image: n8nio/n8n:{version}",
+        "from": "n8n"
+      }
+    }
+  }
 }

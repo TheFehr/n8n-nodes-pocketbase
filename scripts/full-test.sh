@@ -89,10 +89,6 @@ on_exit() {
 }
 trap on_exit EXIT
 
-# Sync versions and package name (non-fatal: may fail locally due to GitHub API rate limits)
-echo "Synchronizing versions and package name..."
-npm run version:update || echo "⚠️  Version sync skipped (GitHub API rate limit or network issue)"
-
 # Get package name from package.json
 PACKAGE_NAME=$(node -p "require('./package.json').name")
 echo "Package name: $PACKAGE_NAME"

@@ -53,7 +53,20 @@ Alternatively, you can use your administrator account and the "\_superusers" col
 - **PocketBase 0.23.0 or newer.** The node signs in through the `_superusers` collection, which PocketBase introduced in 0.23.0.
 - **n8n 1.85.0 or newer.** Older versions can't load the node, because it uses `NodeConnectionTypes`, which n8n added in 1.85.0.
 
-When a new n8n or PocketBase version comes out, a nightly job runs the integration tests against it and releases an update once they pass. Last tested with n8n 2.45.7 and PocketBase 0.40.6.
+When a new n8n or PocketBase version comes out, a nightly job runs the integration tests against it and releases an update once they pass.
+
+<!-- n8n-node-tooling:compatibility -->
+Last tested with n8n 2.45.7 and PocketBase 0.40.6.
+<!-- /n8n-node-tooling:compatibility -->
+
+## Versioning
+
+The package version mirrors the PocketBase it was last tested with, shifted by two in the major: `major.minor` is `(PocketBase major + 2).(PocketBase minor)`, so `2.40.x` goes with PocketBase `0.40`. The patch number is this package's own counter.
+
+- Every change to the node, **including breaking ones**, only bumps the patch. Breaking changes are called out in the release notes, not in the version number. Read the notes before updating.
+- When PocketBase's major or minor version changes, the next release is the matching `<major>.<minor>.0`, after the nightly compatibility check has passed against the new PocketBase.
+
+Versions before `2.40.0` used an independent numbering (`2.3.x`). `2.40.0` is numerically higher than any of them, so updates are not blocked.
 
 ## Development
 
@@ -68,7 +81,7 @@ This project uses modern tooling for development:
 - `npm run lint`: Lint the project.
 - `npm run format`: Format the project.
 - `npm test`: Run tests.
-- `npm run test:pipeline`: Run a full integration test against a PocketBase instance in Docker and update the compatibility section in `README.md`.
+- `npm run test:pipeline`: Run a full integration test against a PocketBase instance in Docker.
 
 ## Resources
 
