@@ -3,6 +3,9 @@
   "extends": ["config:recommended", "security:minimumReleaseAgeNpm"],
   "ignorePaths": ["docker-compose.test.yml"],
   "platformAutomerge": true,
+  "vulnerabilityAlerts": {
+    "automerge": false
+  },
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
