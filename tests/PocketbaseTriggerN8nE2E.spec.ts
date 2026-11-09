@@ -123,10 +123,13 @@ describe.skipIf(!runE2E)("PocketbaseTrigger in a real n8n (e2e)", () => {
         "rm -f /home/node/.n8n/nodes/node_modules/n8n-nodes-pocketbase",
         "ln -sf /home/node/custom-nodes /home/node/.n8n/nodes/node_modules/n8n-nodes-pocketbase",
         "n8n import:credentials --input=/home/node/custom-nodes/tests/workflows/integration_credentials.json",
+        "n8n import:credentials --input=/home/node/custom-nodes/tests/workflows/integration_credentials_wrong_password.json",
         "n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_trigger_e2e.json",
+        "n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_trigger_wrong_password_e2e.json",
         "n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_trigger_options_e2e.json",
         "n8n publish:workflow --id=trigger-e2e",
         "n8n publish:workflow --id=trigger-e2e-options",
+        "n8n publish:workflow --id=trigger-e2e-wrong-password",
       ].join(" && "),
     );
     compose("up", "-d", "--force-recreate", "n8n");
@@ -221,7 +224,19 @@ describe.skipIf(!runE2E)("PocketbaseTrigger in a real n8n (e2e)", () => {
     );
     expect(eventsFor(delivered!).map((e) => e.__action)).toContain("create");
 
-    const logs = compose("logs", "n8n");
-    expect(logs).not.toMatch(/deactivat/i);
+    // The wrong-password workflow is deactivated on purpose; only the working one is checked here.
+    expect(compose("logs", "n8n")).not.toMatch(/trigger node "Pocketbase Trigger" failed/i);
   }, 150000);
+
+  it("should report a wrong password at once instead of retrying", async () => {
+    // Rejected credentials never succeed on retry, so n8n is told right away and deactivates it.
+    await waitFor(
+      () =>
+        /trigger node "Trigger With Wrong Password" failed at runtime and was deactivated/i.test(
+          compose("logs", "n8n"),
+        ),
+      "n8n to deactivate the workflow with the wrong password",
+      30000,
+    );
+  }, 60000);
 });

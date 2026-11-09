@@ -25,12 +25,14 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger reconnect (integration)", ()
     const streams: net.Socket[] = [];
     const proxy = net.createServer((client) => {
       const target = net.connect(Number(upstream.port), upstream.hostname);
-      let first = true;
+      let registered = false;
       client.on("data", (chunk) => {
-        if (first) {
-          first = false;
-          // Only the realtime stream is cut; the node's own HTTP requests use other connections.
-          if (chunk.toString("latin1").startsWith("GET /api/realtime")) streams.push(client);
+        // A keep-alive socket can carry a subscription POST before the realtime GET, so every chunk is
+        // checked, not just the first. Only the realtime stream is cut; the node's own HTTP requests
+        // use their own sockets.
+        if (!registered && chunk.toString("latin1").startsWith("GET /api/realtime")) {
+          registered = true;
+          streams.push(client);
         }
         target.write(chunk);
       });

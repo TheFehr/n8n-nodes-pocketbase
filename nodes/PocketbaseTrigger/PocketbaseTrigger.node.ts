@@ -136,6 +136,18 @@ export class PocketbaseTrigger implements INodeType {
   }
 }
 
+// The status code lives in a different place depending on which layer of n8n threw the error.
+function isPermanentFailure(error: unknown): boolean {
+  const e = error as {
+    httpCode?: string | number;
+    statusCode?: number;
+    status?: number;
+    response?: { status?: number };
+  } | null;
+  const status = Number(e?.httpCode ?? e?.statusCode ?? e?.status ?? e?.response?.status);
+  return status === 400 || status === 401 || status === 403;
+}
+
 function subscribeToPocketbaseSSE(
   this: ITriggerFunctions,
   baseUrl: string,
@@ -149,7 +161,6 @@ function subscribeToPocketbaseSSE(
   let stabilityTimer: NodeJS.Timeout | null = null;
   let reconnectAttempts = 0;
   const MAX_RECONNECT_ATTEMPTS = 50;
-  let consecutiveFailures = 0;
 
   const onConnect = async (e: MessageEvent) => {
     try {
@@ -181,19 +192,24 @@ function subscribeToPocketbaseSSE(
       if (stabilityTimer) clearTimeout(stabilityTimer);
       stabilityTimer = setTimeout(() => {
         reconnectAttempts = 0;
-        consecutiveFailures = 0;
         stabilityTimer = null;
       }, 5000);
     } catch (error) {
-      this.logger.error("Failed to connect to PocketBase SSE", { error, collection: topic });
       const normalizedError =
         error instanceof Error ? error : new Error(String(error || "Unknown error during connect"));
 
-      // Only emit on the first consecutive failure to avoid flooding.
-      if (consecutiveFailures === 0) {
+      // Rejected credentials or a rejected request will fail the same way on every retry, so they are
+      // reported at once. Everything else (connection refused, a 5xx, a server that is still starting
+      // after a restart) is routine and retried; reconnect() raises an error once attempts run out.
+      if (isPermanentFailure(error)) {
+        this.logger.error("Failed to connect to PocketBase SSE", { error, collection: topic });
         this.emitError(normalizedError);
+      } else {
+        this.logger.warn("Failed to connect to PocketBase SSE, retrying", {
+          error,
+          collection: topic,
+        });
       }
-      consecutiveFailures++;
       reconnect();
     }
   };
@@ -210,7 +226,6 @@ function subscribeToPocketbaseSSE(
       error,
       baseUrl,
     });
-    consecutiveFailures++;
     reconnect();
   };
 

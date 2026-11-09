@@ -310,6 +310,61 @@ describe("PocketbaseTrigger", () => {
     }
   });
 
+  // A server that is still starting after a restart refuses or fails requests; that must not
+  // deactivate the workflow. Rejected credentials fail the same way every time and are reported.
+  it.each([
+    ["a refused connection", Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })],
+    ["a 503 from n8n's request helper", { httpCode: "503", message: "Service unavailable" }],
+    ["a 502 on the response", { response: { status: 502 }, message: "Bad gateway" }],
+    ["a 404 for a client id that is already gone", { httpCode: "404", message: "Not found" }],
+  ])("should retry quietly when connecting fails with %s", async (_label, failure) => {
+    vi.useFakeTimers();
+    try {
+      triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+        if (name === "collection") return "posts";
+        if (name === "events") return ["create"];
+        return undefined;
+      });
+      triggerFunctions.helpers.httpRequest.mockRejectedValue(failure);
+
+      const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+      const connect = esInstance.addEventListener.mock.calls.find(
+        (call: unknown[]) => call[0] === "PB_CONNECT",
+      )![1];
+      await connect({ data: JSON.stringify({ clientId: "c1" }) });
+
+      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(2);
+      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
+
+      await response.closeFunction!();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    ["httpCode", { httpCode: "400", message: "Failed to authenticate." }],
+    ["status", { status: 401, message: "Unauthorized" }],
+    ["response.status", { response: { status: 403 }, message: "Forbidden" }],
+  ])("should report rejected credentials at once (%s)", async (_label, failure) => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      return undefined;
+    });
+    triggerFunctions.helpers.httpRequest.mockRejectedValue(failure);
+
+    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+    const connect = esInstance.addEventListener.mock.calls.find(
+      (call: unknown[]) => call[0] === "PB_CONNECT",
+    )![1];
+    await connect({ data: JSON.stringify({ clientId: "c1" }) });
+
+    expect(triggerFunctions.emitError).toHaveBeenCalledTimes(1);
+  });
+
   it("should emit an error only once reconnecting is exhausted", async () => {
     vi.useFakeTimers();
     try {
