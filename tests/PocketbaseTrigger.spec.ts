@@ -181,6 +181,58 @@ describe("PocketbaseTrigger", () => {
     expect(triggerFunctions.emit).not.toHaveBeenCalled();
   });
 
+  it("should subscribe to a topic carrying the filter, fields and expand options", async () => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      if (name === "options") {
+        return { filter: "status = 'paid'", fields: "id,status", expand: "customer" };
+      }
+      return undefined;
+    });
+
+    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+
+    const topic = `posts?options=${encodeURIComponent(
+      JSON.stringify({
+        query: { filter: "status = 'paid'", fields: "id,status", expand: "customer" },
+      }),
+    )}`;
+    // The event is named after the exact subscribed topic, so the listener has to use it too.
+    const topicCallback = esInstance.addEventListener.mock.calls.find(
+      (call: unknown[]) => call[0] === topic,
+    )?.[1];
+    expect(topicCallback).toBeDefined();
+    expect(esInstance.addEventListener).not.toHaveBeenCalledWith("posts", expect.any(Function));
+
+    const connect = esInstance.addEventListener.mock.calls.find(
+      (call: unknown[]) => call[0] === "PB_CONNECT",
+    )![1];
+    await connect({ data: JSON.stringify({ clientId: "c1" }) });
+    expect(triggerFunctions.helpers.httpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "http://localhost:8090/api/realtime",
+        body: { clientId: "c1", subscriptions: [topic] },
+      }),
+    );
+
+    topicCallback({ data: JSON.stringify({ action: "create", record: { id: "1" } }) });
+    expect(triggerFunctions.emit).toHaveBeenCalledTimes(1);
+  });
+
+  it("should leave out empty options and subscribe to the plain collection", async () => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      if (name === "options") return { filter: "", fields: "" };
+      return undefined;
+    });
+
+    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+
+    expect(esInstance.addEventListener).toHaveBeenCalledWith("posts", expect.any(Function));
+  });
+
   it("should not emit data on non-matching event", async () => {
     triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
       if (name === "collection") return "posts";

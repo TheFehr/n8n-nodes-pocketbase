@@ -64,6 +64,42 @@ export class PocketbaseTrigger implements INodeType {
         required: true,
         description: "The events to trigger the node",
       },
+      {
+        displayName: "Options",
+        name: "options",
+        type: "collection",
+        placeholder: "Add Option",
+        default: {},
+        description:
+          "Applied by PocketBase before an event is sent, so the workflow only starts for the records it cares about",
+        options: [
+          {
+            displayName: "Expand Relations",
+            name: "expand",
+            type: "string",
+            default: "",
+            placeholder: "customer,items.product",
+            description: "Comma-separated relations to expand in the emitted record",
+          },
+          {
+            displayName: "Fields",
+            name: "fields",
+            type: "string",
+            default: "",
+            placeholder: "status,total",
+            description: "Comma-separated fields to return. Leave empty for all fields.",
+          },
+          {
+            displayName: "Filter",
+            name: "filter",
+            type: "string",
+            default: "",
+            placeholder: "status = 'paid'",
+            description:
+              "PocketBase filter expression. Only records that match it trigger the workflow.",
+          },
+        ],
+      },
     ],
   };
 
@@ -77,7 +113,22 @@ export class PocketbaseTrigger implements INodeType {
     const collection = this.getNodeParameter("collection") as string;
     const events = this.getNodeParameter("events") as string[];
 
-    const { closeFunction } = subscribeToPocketbaseSSE.call(this, baseUrl, collection, events);
+    const options = (this.getNodeParameter("options", {}) ?? {}) as {
+      filter?: string;
+      fields?: string;
+      expand?: string;
+    };
+    const query: Record<string, string> = {};
+    for (const key of ["filter", "fields", "expand"] as const) {
+      if (options[key]) query[key] = options[key];
+    }
+    // PocketBase names the SSE event after the full topic, options included, so the listener must
+    // be registered for exactly the string that was subscribed.
+    const topic = Object.keys(query).length
+      ? `${collection}?options=${encodeURIComponent(JSON.stringify({ query }))}`
+      : collection;
+
+    const { closeFunction } = subscribeToPocketbaseSSE.call(this, baseUrl, topic, events);
 
     // No manualTriggerFunction: in a test run n8n then waits for the first real event instead of
     // emitting made-up data that downstream nodes would be built against.
@@ -88,7 +139,7 @@ export class PocketbaseTrigger implements INodeType {
 function subscribeToPocketbaseSSE(
   this: ITriggerFunctions,
   baseUrl: string,
-  collection: string,
+  topic: string,
   events: string[],
 ): { closeFunction: () => Promise<void> } {
   let es: EventSource | null = null;
@@ -122,7 +173,7 @@ function subscribeToPocketbaseSSE(
         headers: { Authorization: token },
         body: {
           clientId,
-          subscriptions: [collection],
+          subscriptions: [topic],
         },
       });
 
@@ -134,7 +185,7 @@ function subscribeToPocketbaseSSE(
         stabilityTimer = null;
       }, 5000);
     } catch (error) {
-      this.logger.error("Failed to connect to PocketBase SSE", { error, collection });
+      this.logger.error("Failed to connect to PocketBase SSE", { error, collection: topic });
       const normalizedError =
         error instanceof Error ? error : new Error(String(error || "Unknown error during connect"));
 
@@ -190,7 +241,7 @@ function subscribeToPocketbaseSSE(
       this.logger.error("Failed to parse PocketBase SSE message", {
         error,
         redactedPreview,
-        collection,
+        collection: topic,
       });
     }
   };
@@ -203,7 +254,7 @@ function subscribeToPocketbaseSSE(
 
     es.addEventListener("PB_CONNECT", onConnect);
     es.addEventListener("error", onError);
-    es.addEventListener(collection, onMessage);
+    es.addEventListener(topic, onMessage);
   };
 
   const reconnect = () => {
@@ -218,7 +269,7 @@ function subscribeToPocketbaseSSE(
     if (es) {
       es.removeEventListener("PB_CONNECT", onConnect);
       es.removeEventListener("error", onError);
-      es.removeEventListener(collection, onMessage);
+      es.removeEventListener(topic, onMessage);
       es.close();
       es = null;
     }
@@ -226,7 +277,7 @@ function subscribeToPocketbaseSSE(
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
       this.logger.error("PocketBase trigger permanently closed after max reconnection attempts", {
         baseUrl,
-        collection,
+        collection: topic,
         reconnectAttempts,
       });
       this.emitError(
@@ -260,7 +311,7 @@ function subscribeToPocketbaseSSE(
       if (es) {
         es.removeEventListener("PB_CONNECT", onConnect);
         es.removeEventListener("error", onError);
-        es.removeEventListener(collection, onMessage);
+        es.removeEventListener(topic, onMessage);
         es.close();
       }
     },

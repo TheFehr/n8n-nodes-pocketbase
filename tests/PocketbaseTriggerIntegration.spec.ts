@@ -30,7 +30,12 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
 
     // 2. Setup Trigger Node
     const node = new PocketbaseTrigger();
-    let triggeredData: unknown[] | null = null;
+    // Other integration tests create users while this one runs, so collect every event.
+    const received: unknown[][] = [];
+    const findTriggered = (wanted: string) =>
+      received.find(
+        (data) => (data[0] as { json: { email: string } }[])[0].json.email === wanted,
+      );
 
     interface MockHttpRequestOptions {
       url: string;
@@ -75,7 +80,7 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
         returnJsonArray: (data: unknown) => [{ json: data }],
       },
       emit: (data: unknown[]) => {
-        triggeredData = data;
+        received.push(data);
       },
       logger: {
         error: console.error,
@@ -125,13 +130,14 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
 
       // 4. Wait for the trigger to catch the event
       for (let i = 0; i < 40; i++) {
-        if (triggeredData) break;
+        if (findTriggered(uniqueEmail)) break;
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
+      const triggeredData = findTriggered(uniqueEmail);
       expect(
         triggeredData,
-        "Timeout waiting for Pocketbase trigger: triggeredData not set after 20s",
+        "Timeout waiting for Pocketbase trigger: no event for the new record after 20s",
       ).toBeDefined();
       expect(triggeredData).toHaveLength(1);
       expect(triggeredData![0]).toHaveLength(1);
