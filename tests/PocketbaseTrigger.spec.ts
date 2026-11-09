@@ -20,6 +20,7 @@ interface MockTriggerFunctions {
   emitError: ReturnType<typeof vi.fn>;
   logger: {
     error: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -54,6 +55,7 @@ describe("PocketbaseTrigger", () => {
       emitError: vi.fn(),
       logger: {
         error: vi.fn(),
+        warn: vi.fn(),
       },
     };
     esInstance = {
@@ -164,7 +166,7 @@ describe("PocketbaseTrigger", () => {
     ]);
   });
 
-  it("should emit sample data on manualTriggerFunction", async () => {
+  it("should leave a test run waiting for a real event instead of emitting sample data", async () => {
     triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
       if (name === "collection") return "posts";
       if (name === "events") return ["create", "update", "delete"];
@@ -173,21 +175,10 @@ describe("PocketbaseTrigger", () => {
 
     const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
-    if (response.manualTriggerFunction) {
-      await response.manualTriggerFunction();
-      expect(triggerFunctions.emit).toHaveBeenCalledWith([
-        [
-          {
-            json: expect.objectContaining({
-              __action: "create",
-              collectionName: "posts",
-            }),
-          },
-        ],
-      ]);
-    } else {
-      throw new Error("manualTriggerFunction should be defined");
-    }
+    // n8n runs manualTriggerFunction as soon as a test run starts and never waits for the real
+    // subscription; without one it waits for the first emit() of the live stream.
+    expect(response.manualTriggerFunction).toBeUndefined();
+    expect(triggerFunctions.emit).not.toHaveBeenCalled();
   });
 
   it("should not emit data on non-matching event", async () => {
@@ -228,7 +219,12 @@ describe("PocketbaseTrigger", () => {
     expect(esInstance.close).toHaveBeenCalled();
   });
 
-  it("should handle EventSource connection failure", async () => {
+  // PocketBase closes a realtime connection after five idle minutes. That is routine, and emitError
+  // would make n8n deactivate the workflow, so a drop must be handled by reconnecting alone.
+  it.each([
+    ["an Error", new Error("Connection failed")],
+    ["a plain event object", { message: "Conn failed", code: 500 }],
+  ])("should reconnect without emitting an error when the stream drops with %s", async (_label, dropped) => {
     vi.useFakeTimers();
     try {
       triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
@@ -238,25 +234,23 @@ describe("PocketbaseTrigger", () => {
       });
 
       const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(1);
 
       const errorCallback = esInstance.addEventListener.mock.calls.find(
         (call: unknown[]) => call[0] === "error",
       )![1];
+      errorCallback(dropped);
 
-      const mockError = new Error("Connection failed");
-      errorCallback(mockError);
-
-      expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
-        "PocketBase SSE connection failure",
-        expect.objectContaining({ error: mockError, baseUrl: "http://localhost:8090" }),
-      );
-      expect(triggerFunctions.emitError).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "Connection failed",
-          originalErrorEvent: mockError,
-        }),
+      expect(triggerFunctions.logger.warn).toHaveBeenCalledWith(
+        "PocketBase SSE connection lost, reconnecting",
+        expect.objectContaining({ error: dropped, baseUrl: "http://localhost:8090" }),
       );
       expect(esInstance.close).toHaveBeenCalled();
+      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(2);
+      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
 
       await response.closeFunction!();
     } finally {
@@ -264,7 +258,7 @@ describe("PocketbaseTrigger", () => {
     }
   });
 
-  it("should handle EventSource delivering a non-Error error event", async () => {
+  it("should emit an error only once reconnecting is exhausted", async () => {
     vi.useFakeTimers();
     try {
       triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
@@ -273,29 +267,26 @@ describe("PocketbaseTrigger", () => {
         return undefined;
       });
 
-      const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+      await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
       const errorCallback = esInstance.addEventListener.mock.calls.find(
         (call: unknown[]) => call[0] === "error",
       )![1];
 
-      const mockError = { message: "Conn failed", code: 500 };
-      errorCallback(mockError);
+      // The server stays unreachable: every attempt fails before the stream is ever stable.
+      for (let attempt = 0; attempt < 50; attempt++) {
+        errorCallback({ message: "down" });
+        await vi.advanceTimersByTimeAsync(31_000);
+      }
+      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
 
-      expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
-        "PocketBase SSE connection failure",
-        expect.objectContaining({ error: mockError, baseUrl: "http://localhost:8090" }),
-      );
+      errorCallback({ message: "down" });
+      expect(triggerFunctions.emitError).toHaveBeenCalledTimes(1);
       expect(triggerFunctions.emitError).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: "Conn failed",
-          code: 500,
-          originalErrorEvent: mockError,
+          message: expect.stringContaining("Maximum reconnection attempts (50)"),
         }),
       );
-      expect(esInstance.close).toHaveBeenCalled();
-
-      await response.closeFunction!();
     } finally {
       vi.useRealTimers();
     }

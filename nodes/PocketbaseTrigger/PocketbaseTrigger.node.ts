@@ -79,20 +79,9 @@ export class PocketbaseTrigger implements INodeType {
 
     const { closeFunction } = subscribeToPocketbaseSSE.call(this, baseUrl, collection, events);
 
-    return {
-      closeFunction,
-      manualTriggerFunction: async () => {
-        const sampleData = {
-          __action: "create",
-          id: "sample-id",
-          collectionId: "sample-collection-id",
-          collectionName: collection,
-          created: new Date().toISOString(),
-          updated: new Date().toISOString(),
-        };
-        this.emit([this.helpers.returnJsonArray(sampleData)]);
-      },
-    };
+    // No manualTriggerFunction: in a test run n8n then waits for the first real event instead of
+    // emitting made-up data that downstream nodes would be built against.
+    return { closeFunction };
   }
 }
 
@@ -163,27 +152,13 @@ function subscribeToPocketbaseSSE(
       clearTimeout(stabilityTimer);
       stabilityTimer = null;
     }
-    this.logger.error("PocketBase SSE connection failure", {
+    // A dropped stream is routine: PocketBase closes a connection that has been idle for five minutes.
+    // emitError would make n8n deactivate the workflow, so it is reserved for failures that retrying
+    // cannot fix; reconnect() raises one once its attempts run out.
+    this.logger.warn("PocketBase SSE connection lost, reconnecting", {
       error,
       baseUrl,
     });
-
-    const normalizedError = new Error(error.message || "PocketBase SSE connection failure") as Error & {
-      code?: number;
-      status?: number;
-      originalErrorEvent?: EventSourceErrorEvent;
-    };
-    // `status` isn't part of eventsource's declared ErrorEvent shape, but the
-    // library has been observed attaching it on some HTTP error responses.
-    const status = (error as unknown as { status?: number }).status;
-    if (error.code) normalizedError.code = error.code;
-    if (status) normalizedError.status = status;
-    normalizedError.originalErrorEvent = error;
-
-    // Only emit error on the first failure. Subsequent reconnect attempts will not flood the error stream.
-    if (consecutiveFailures === 0) {
-      this.emitError(normalizedError);
-    }
     consecutiveFailures++;
     reconnect();
   };
