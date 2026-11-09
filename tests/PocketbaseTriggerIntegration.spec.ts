@@ -32,6 +32,8 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
     const node = new PocketbaseTrigger();
     // Other integration tests create users while this one runs, so collect every event.
     const received: unknown[][] = [];
+    // Counts accepted realtime subscriptions, so the test waits for one instead of a fixed delay.
+    let subscriptions = 0;
     const findTriggered = (wanted: string) =>
       received.find(
         (data) => (data[0] as { json: { email: string } }[])[0].json.email === wanted,
@@ -64,6 +66,7 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
             body: JSON.stringify(options.body),
           });
 
+          if (res.ok && options.url.endsWith("/api/realtime")) subscriptions++;
           if (res.status === 204) return {};
 
           if (!res.ok) {
@@ -100,8 +103,11 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
     let createdRecordId: string | undefined;
 
     try {
-      // Give it a moment to connect and handshake
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Events from before PocketBase accepts the subscription are lost, so wait for it.
+      for (let i = 0; i < 60 && subscriptions === 0; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      expect(subscriptions, "PocketBase did not accept the subscription within 30s").toBe(1);
 
       // 3. Create a record to trigger the SSE
       const uniqueEmail = `test-trigger-${Date.now()}@example.com`;

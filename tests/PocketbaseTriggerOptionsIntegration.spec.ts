@@ -44,6 +44,8 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger options (integration)", () =
       return ((await res.json()) as { id: string }).id;
     };
 
+    // Counts accepted realtime subscriptions, so tests wait for those instead of a fixed delay.
+    let subscriptions = 0;
     const emitted: Record<string, unknown>[] = [];
     const emittedErrors: unknown[] = [];
     const triggerFunctions = {
@@ -66,6 +68,7 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger options (integration)", () =
             headers: { ...options.headers, "Content-Type": "application/json" },
             body: JSON.stringify(options.body),
           });
+          if (res.ok && options.url.endsWith("/api/realtime")) subscriptions++;
           if (res.status === 204) return {};
           if (!res.ok) throw new Error(`Request failed: ${res.status} ${await res.text()}`);
           return res.json();
@@ -87,7 +90,7 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger options (integration)", () =
 
     const createdIds: string[] = [];
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await waitFor(() => subscriptions === 1, "PocketBase to accept the subscription");
       createdIds.push(await createUser("nomatch"));
       const matchId = await createUser(marker);
       createdIds.push(matchId);

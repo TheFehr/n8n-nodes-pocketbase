@@ -71,6 +71,8 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger reconnect (integration)", ()
       return { id, email: uniqueEmail };
     };
 
+    // Counts accepted realtime subscriptions, so tests wait for those instead of a fixed delay.
+    let subscriptions = 0;
     const emittedEmails: string[] = [];
     const emittedErrors: unknown[] = [];
     const triggerFunctions = {
@@ -92,6 +94,7 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger reconnect (integration)", ()
             headers: { ...options.headers, "Content-Type": "application/json" },
             body: JSON.stringify(options.body),
           });
+          if (res.ok && options.url.endsWith("/api/realtime")) subscriptions++;
           if (res.status === 204) return {};
           if (!res.ok) throw new Error(`Request failed: ${res.status} ${await res.text()}`);
           return res.json();
@@ -114,7 +117,7 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger reconnect (integration)", ()
     const createdIds: string[] = [];
     try {
       await waitFor(() => streams.length === 1, "the realtime stream to open");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await waitFor(() => subscriptions === 1, "PocketBase to accept the subscription");
 
       const before = await createUser("before");
       createdIds.push(before.id);
@@ -124,7 +127,7 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger reconnect (integration)", ()
       streams[0].destroy();
 
       await waitFor(() => streams.length === 2, "the trigger to reconnect");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await waitFor(() => subscriptions === 2, "PocketBase to accept the new subscription");
 
       const after = await createUser("after");
       createdIds.push(after.id);
