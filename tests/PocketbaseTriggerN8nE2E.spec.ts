@@ -120,6 +120,7 @@ describe.skipIf(!runE2E)("PocketbaseTrigger in a real n8n (e2e)", () => {
       "-c",
       [
         "mkdir -p /home/node/.n8n/nodes/node_modules",
+        "rm -f /home/node/.n8n/nodes/node_modules/n8n-nodes-pocketbase",
         "ln -sf /home/node/custom-nodes /home/node/.n8n/nodes/node_modules/n8n-nodes-pocketbase",
         "n8n import:credentials --input=/home/node/custom-nodes/tests/workflows/integration_credentials.json",
         "n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_trigger_e2e.json",
