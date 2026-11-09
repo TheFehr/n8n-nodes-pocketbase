@@ -85,7 +85,7 @@ This project uses modern tooling for development:
 - `npm run lint`: Lint the project.
 - `npm run format`: Format the project.
 - `npm test`: Run tests.
-- `npm run test:pipeline`: Run a full integration test against a PocketBase instance in Docker.
+- `npm run test:pipeline`: Run a full integration test against a PocketBase instance in Docker. It also publishes a workflow with the Trigger node in a real n8n, drives PocketBase through its API (create, update, delete, a dropped stream) and checks the files that workflow writes.
 
 ## Resources
 
