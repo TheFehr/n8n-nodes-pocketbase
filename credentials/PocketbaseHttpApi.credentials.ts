@@ -1,9 +1,4 @@
-import {
-  IconFile,
-  ICredentialTestRequest,
-  ICredentialType,
-  INodeProperties,
-} from "n8n-workflow";
+import { IconFile, ICredentialTestRequest, ICredentialType, INodeProperties } from "n8n-workflow";
 
 export class PocketbaseHttpApi implements ICredentialType {
   name = "pocketbaseHttpApi";

@@ -13,7 +13,12 @@
       "type": "n8n-nodes-pocketbase.pocketbaseTrigger",
       "typeVersion": 1,
       "position": [100, 100],
-      "credentials": { "pocketbaseHttpApi": { "id": "pocketbase-cred-id", "name": "Pocketbase Integration Test Credential" } }
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id",
+          "name": "Pocketbase Integration Test Credential"
+        }
+      }
     },
     {
       "parameters": {

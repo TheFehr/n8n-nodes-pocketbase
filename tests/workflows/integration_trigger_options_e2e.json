@@ -6,9 +6,7 @@
     {
       "parameters": {
         "collection": "e2e_posts",
-        "events": [
-          "create"
-        ],
+        "events": ["create"],
         "options": {
           "filter": "title = \"match\"",
           "fields": "id,title,expand",
@@ -19,10 +17,7 @@
       "name": "Pocketbase Trigger",
       "type": "n8n-nodes-pocketbase.pocketbaseTrigger",
       "typeVersion": 1,
-      "position": [
-        100,
-        100
-      ],
+      "position": [100, 100],
       "credentials": {
         "pocketbaseHttpApi": {
           "id": "pocketbase-cred-id",
@@ -40,10 +35,7 @@
       "name": "Convert to File",
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
-      "position": [
-        320,
-        100
-      ]
+      "position": [320, 100]
     },
     {
       "parameters": {
@@ -56,10 +48,7 @@
       "name": "Write Event",
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
-      "position": [
-        540,
-        100
-      ]
+      "position": [540, 100]
     }
   ],
   "connections": {

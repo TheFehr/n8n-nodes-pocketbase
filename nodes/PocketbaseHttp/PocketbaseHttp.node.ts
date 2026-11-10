@@ -359,7 +359,8 @@ export class PocketbaseHttp implements INodeType {
           },
         },
         default: [],
-        description: "Add fields to be sent. To clear a field, use an expression: <code>={{ null }}</code>.",
+        description:
+          "Add fields to be sent. To clear a field, use an expression: <code>={{ null }}</code>.",
       },
       {
         displayName: "JSON Body",
@@ -373,7 +374,8 @@ export class PocketbaseHttp implements INodeType {
         },
         default: "",
         placeholder: "Body according to the collection's schema",
-        description: "JSON object to be sent. To clear a field, use <code>null</code> as value: <code>{\"myField\": null}</code>.",
+        description:
+          'JSON object to be sent. To clear a field, use <code>null</code> as value: <code>{"myField": null}</code>.',
       },
       {
         displayName: "Binary Property Name",

@@ -13,9 +13,11 @@ describe("fetchPocketbaseToken", () => {
 
   beforeEach(() => {
     _resetTokenCacheForTesting();
-    mockHttpRequest = vi.fn<(options: IHttpRequestOptions) => Promise<unknown>>().mockResolvedValue({
-      token: "mock-jwt-token",
-    });
+    mockHttpRequest = vi
+      .fn<(options: IHttpRequestOptions) => Promise<unknown>>()
+      .mockResolvedValue({
+        token: "mock-jwt-token",
+      });
   });
 
   it("fetches a token and calls the auth endpoint", async () => {
@@ -45,7 +47,12 @@ describe("fetchPocketbaseToken", () => {
     mockHttpRequest.mockResolvedValue({ token: freshToken });
 
     await fetchPocketbaseToken(mockHttpRequest, "http://cache-hit.local", "admin", "pass");
-    const second = await fetchPocketbaseToken(mockHttpRequest, "http://cache-hit.local", "admin", "pass");
+    const second = await fetchPocketbaseToken(
+      mockHttpRequest,
+      "http://cache-hit.local",
+      "admin",
+      "pass",
+    );
 
     expect(second).toBe(freshToken);
     expect(mockHttpRequest).toHaveBeenCalledOnce();
@@ -58,7 +65,12 @@ describe("fetchPocketbaseToken", () => {
     mockHttpRequest.mockResolvedValueOnce({ token: "refreshed-token" });
 
     await fetchPocketbaseToken(mockHttpRequest, "http://near-expiry.local", "admin", "pass");
-    const second = await fetchPocketbaseToken(mockHttpRequest, "http://near-expiry.local", "admin", "pass");
+    const second = await fetchPocketbaseToken(
+      mockHttpRequest,
+      "http://near-expiry.local",
+      "admin",
+      "pass",
+    );
 
     expect(second).toBe("refreshed-token");
     expect(mockHttpRequest).toHaveBeenCalledTimes(2);
@@ -71,7 +83,12 @@ describe("fetchPocketbaseToken", () => {
     mockHttpRequest.mockResolvedValueOnce({ token: "fresh-token" });
 
     await fetchPocketbaseToken(mockHttpRequest, "http://expired.local", "admin", "pass");
-    const second = await fetchPocketbaseToken(mockHttpRequest, "http://expired.local", "admin", "pass");
+    const second = await fetchPocketbaseToken(
+      mockHttpRequest,
+      "http://expired.local",
+      "admin",
+      "pass",
+    );
 
     expect(second).toBe("fresh-token");
     expect(mockHttpRequest).toHaveBeenCalledTimes(2);

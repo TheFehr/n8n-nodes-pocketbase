@@ -32,7 +32,7 @@ export class PocketbaseTrigger implements INodeType {
     ],
     properties: [
       {
-        displayName: 'Collection Name or ID',
+        displayName: "Collection Name or ID",
         name: "collection",
         type: "options",
         typeOptions: {
@@ -40,7 +40,8 @@ export class PocketbaseTrigger implements INodeType {
         },
         default: "",
         required: true,
-        description: 'The name of the collection to watch for changes. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+        description:
+          'The name of the collection to watch for changes. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
       },
       {
         displayName: "Events",

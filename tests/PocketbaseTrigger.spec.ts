@@ -276,44 +276,50 @@ describe("PocketbaseTrigger", () => {
   it.each([
     ["an Error", new Error("Connection failed")],
     ["a plain event object", { message: "Conn failed", code: 500 }],
-  ])("should reconnect without emitting an error when the stream drops with %s", async (_label, dropped) => {
-    vi.useFakeTimers();
-    try {
-      triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
-        if (name === "collection") return "posts";
-        if (name === "events") return ["create"];
-        return undefined;
-      });
+  ])(
+    "should reconnect without emitting an error when the stream drops with %s",
+    async (_label, dropped) => {
+      vi.useFakeTimers();
+      try {
+        triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+          if (name === "collection") return "posts";
+          if (name === "events") return ["create"];
+          return undefined;
+        });
 
-      const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
-      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(1);
+        const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+        expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(1);
 
-      const errorCallback = esInstance.addEventListener.mock.calls.find(
-        (call: unknown[]) => call[0] === "error",
-      )![1];
-      errorCallback(dropped);
+        const errorCallback = esInstance.addEventListener.mock.calls.find(
+          (call: unknown[]) => call[0] === "error",
+        )![1];
+        errorCallback(dropped);
 
-      expect(triggerFunctions.logger.warn).toHaveBeenCalledWith(
-        "PocketBase SSE connection lost, reconnecting",
-        expect.objectContaining({ error: dropped, baseUrl: "http://localhost:8090" }),
-      );
-      expect(esInstance.close).toHaveBeenCalled();
-      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
+        expect(triggerFunctions.logger.warn).toHaveBeenCalledWith(
+          "PocketBase SSE connection lost, reconnecting",
+          expect.objectContaining({ error: dropped, baseUrl: "http://localhost:8090" }),
+        );
+        expect(esInstance.close).toHaveBeenCalled();
+        expect(triggerFunctions.emitError).not.toHaveBeenCalled();
 
-      await vi.advanceTimersByTimeAsync(31_000);
-      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(2);
-      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(31_000);
+        expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(2);
+        expect(triggerFunctions.emitError).not.toHaveBeenCalled();
 
-      await response.closeFunction!();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
+        await response.closeFunction!();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 
   // A server that is still starting after a restart refuses or fails requests; that must not
   // deactivate the workflow. Rejected credentials fail the same way every time and are reported.
   it.each([
-    ["a refused connection", Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })],
+    [
+      "a refused connection",
+      Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }),
+    ],
     ["a 503 from n8n's request helper", { httpCode: "503", message: "Service unavailable" }],
     ["a 502 on the response", { response: { status: 502 }, message: "Bad gateway" }],
     ["a 404 for a client id that is already gone", { httpCode: "404", message: "Not found" }],
@@ -365,21 +371,24 @@ describe("PocketbaseTrigger", () => {
     expect(triggerFunctions.emitError).toHaveBeenCalledTimes(1);
   });
 
-  it.each([400, 401, 403])("should report an SSE stream rejected with HTTP %s at once", async (code) => {
-    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
-      if (name === "collection") return "posts";
-      if (name === "events") return ["create"];
-      return undefined;
-    });
+  it.each([400, 401, 403])(
+    "should report an SSE stream rejected with HTTP %s at once",
+    async (code) => {
+      triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+        if (name === "collection") return "posts";
+        if (name === "events") return ["create"];
+        return undefined;
+      });
 
-    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
-    const errorCallback = esInstance.addEventListener.mock.calls.find(
-      (call: unknown[]) => call[0] === "error",
-    )![1];
-    errorCallback({ code, message: "rejected" });
+      await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+      const errorCallback = esInstance.addEventListener.mock.calls.find(
+        (call: unknown[]) => call[0] === "error",
+      )![1];
+      errorCallback({ code, message: "rejected" });
 
-    expect(triggerFunctions.emitError).toHaveBeenCalledTimes(1);
-  });
+      expect(triggerFunctions.emitError).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("should ignore a subscription failure from a stream that has been replaced", async () => {
     vi.useFakeTimers();

@@ -233,7 +233,7 @@ export const LoadOptions = {
     if (items.length === 0) {
       return [
         {
-          name: 'No Records Found',
+          name: "No Records Found",
           value: "",
         },
       ];
