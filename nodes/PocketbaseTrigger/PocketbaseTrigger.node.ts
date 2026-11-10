@@ -136,7 +136,9 @@ export class PocketbaseTrigger implements INodeType {
   }
 }
 
-// The status code lives in a different place depending on which layer of n8n threw the error.
+// HTTP 400, 401 and 403 mean PocketBase rejected the credentials or the request itself, such as an
+// invalid filter or fields option. Neither can succeed on a retry. The status code lives in a
+// different place depending on which layer of n8n threw the error.
 function isPermanentFailure(error: unknown): boolean {
   const e = error as {
     httpCode?: string | number;

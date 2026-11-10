@@ -43,7 +43,7 @@ This node allows you to subscribe to PocketBase events (create, update, delete) 
 
 - **Options**: **Filter**, **Fields** and **Expand Relations** are applied by PocketBase before an event is sent, so the workflow only starts for the records it needs. The filter uses the same syntax as the List operation, for example `status = 'paid'`.
 - **Testing**: a test run in the editor waits for the first real event from your collection, so create or change a record to finish it.
-- **Dropped connections**: PocketBase closes a stream after five idle minutes. The node reconnects by itself and the workflow stays active. It reports an error, and so makes n8n deactivate the workflow, when PocketBase rejects the credentials (HTTP 400, 401 or 403), or after it has failed to reconnect 50 times in a row. A server that is still starting up, or a refused connection, is simply retried. PocketBase does not replay events, so a change made in the second or two while the node reconnects is not delivered.
+- **Dropped connections**: PocketBase closes a stream after five idle minutes. The node reconnects by itself and the workflow stays active. It reports an error, and so makes n8n deactivate the workflow, when PocketBase rejects the credentials or the request, for example an invalid filter (HTTP 400, 401 or 403), or after it has failed to reconnect 50 times in a row. A server that is still starting up, or a refused connection, is simply retried. PocketBase does not replay events, so a change made in the second or two while the node reconnects is not delivered.
 
 **Note**: The trigger node is currently in Beta. We've implemented basic reconnection logic, but it may still be sensitive to network interruptions or large amounts of data. Please use with caution in production.
 
