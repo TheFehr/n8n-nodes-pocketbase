@@ -365,6 +365,71 @@ describe("PocketbaseTrigger", () => {
     expect(triggerFunctions.emitError).toHaveBeenCalledTimes(1);
   });
 
+  it.each([400, 401, 403])("should report an SSE stream rejected with HTTP %s at once", async (code) => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      return undefined;
+    });
+
+    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+    const errorCallback = esInstance.addEventListener.mock.calls.find(
+      (call: unknown[]) => call[0] === "error",
+    )![1];
+    errorCallback({ code, message: "rejected" });
+
+    expect(triggerFunctions.emitError).toHaveBeenCalledTimes(1);
+  });
+
+  it("should ignore a subscription failure from a stream that has been replaced", async () => {
+    vi.useFakeTimers();
+    try {
+      triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+        if (name === "collection") return "posts";
+        if (name === "events") return ["create"];
+        return undefined;
+      });
+      // Each connection gets its own stream object, as the real EventSource does.
+      vi.mocked(EventSource).mockImplementation(function (this: unknown) {
+        esInstance = { addEventListener: vi.fn(), removeEventListener: vi.fn(), close: vi.fn() };
+        return esInstance;
+      } as unknown as (url: string | URL) => EventSource);
+      let rejectSubscription: (reason: unknown) => void = () => {};
+      triggerFunctions.helpers.httpRequest.mockImplementation(
+        () => new Promise((_resolve, reject) => (rejectSubscription = reject)),
+      );
+
+      const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+      const connect = esInstance.addEventListener.mock.calls.find(
+        (call: unknown[]) => call[0] === "PB_CONNECT",
+      )![1];
+      const errorCallback = esInstance.addEventListener.mock.calls.find(
+        (call: unknown[]) => call[0] === "error",
+      )![1];
+      const pending = connect({ data: JSON.stringify({ clientId: "c1" }) });
+      await vi.advanceTimersByTimeAsync(0);
+
+      errorCallback({ message: "dropped" });
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(2);
+
+      rejectSubscription({ httpCode: "404", message: "Not found" });
+      await pending;
+      await vi.advanceTimersByTimeAsync(0);
+
+      // The old request failing must not close the replacement stream or schedule another one.
+      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(2);
+      expect(triggerFunctions.logger.warn).not.toHaveBeenCalledWith(
+        "Failed to connect to PocketBase SSE, retrying",
+        expect.anything(),
+      );
+
+      await response.closeFunction!();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("should emit an error only once reconnecting is exhausted", async () => {
     vi.useFakeTimers();
     try {

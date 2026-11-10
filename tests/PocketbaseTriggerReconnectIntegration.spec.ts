@@ -27,10 +27,10 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger reconnect (integration)", ()
       const target = net.connect(Number(upstream.port), upstream.hostname);
       let registered = false;
       client.on("data", (chunk) => {
-        // A keep-alive socket can carry a subscription POST before the realtime GET, so every chunk is
-        // checked, not just the first. Only the realtime stream is cut; the node's own HTTP requests
-        // use their own sockets.
-        if (!registered && chunk.toString("latin1").startsWith("GET /api/realtime")) {
+        // A keep-alive socket can carry a subscription POST before the realtime GET, so the request
+        // line is looked for anywhere in every chunk, not just at the start of the first. Only the
+        // realtime stream is cut; the node's own HTTP requests use their own sockets.
+        if (!registered && chunk.toString("latin1").includes("GET /api/realtime")) {
           registered = true;
           streams.push(client);
         }

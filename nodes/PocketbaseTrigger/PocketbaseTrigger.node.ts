@@ -136,17 +136,20 @@ export class PocketbaseTrigger implements INodeType {
   }
 }
 
-// HTTP 400, 401 and 403 mean PocketBase rejected the credentials or the request itself, such as an
-// invalid filter or fields option. Neither can succeed on a retry. The status code lives in a
-// different place depending on which layer of n8n threw the error.
+// HTTP 400, 401 and 403 mean the credentials were rejected (PocketBase answers a wrong password
+// with 400), which cannot succeed on a retry. The status code lives in a different place depending
+// on which layer threw the error: n8n's request helper, or EventSource, which uses `code`.
 function isPermanentFailure(error: unknown): boolean {
   const e = error as {
     httpCode?: string | number;
     statusCode?: number;
     status?: number;
+    code?: string | number;
     response?: { status?: number };
   } | null;
-  const status = Number(e?.httpCode ?? e?.statusCode ?? e?.status ?? e?.response?.status);
+  const status = Number(
+    e?.httpCode ?? e?.statusCode ?? e?.status ?? e?.response?.status ?? e?.code,
+  );
   return status === 400 || status === 401 || status === 403;
 }
 
@@ -165,6 +168,7 @@ function subscribeToPocketbaseSSE(
   const MAX_RECONNECT_ATTEMPTS = 50;
 
   const onConnect = async (e: MessageEvent) => {
+    const connectingStream = es;
     try {
       const data = JSON.parse(e.data as string);
       const clientId = data.clientId;
@@ -197,6 +201,8 @@ function subscribeToPocketbaseSSE(
         stabilityTimer = null;
       }, 5000);
     } catch (error) {
+      // A failure from a stream that has since been replaced must not tear down its replacement.
+      if (isClosed || es !== connectingStream) return;
       const normalizedError =
         error instanceof Error ? error : new Error(String(error || "Unknown error during connect"));
 
@@ -223,11 +229,16 @@ function subscribeToPocketbaseSSE(
     }
     // A dropped stream is routine: PocketBase closes a connection that has been idle for five minutes.
     // emitError would make n8n deactivate the workflow, so it is reserved for failures that retrying
-    // cannot fix; reconnect() raises one once its attempts run out.
-    this.logger.warn("PocketBase SSE connection lost, reconnecting", {
-      error,
-      baseUrl,
-    });
+    // cannot fix, such as a proxy rejecting the stream; reconnect() raises one once its attempts run out.
+    if (isPermanentFailure(error)) {
+      this.logger.error("PocketBase rejected the SSE connection", { error, baseUrl });
+      this.emitError(new Error(`PocketBase SSE: connection rejected (HTTP ${error.code})`));
+    } else {
+      this.logger.warn("PocketBase SSE connection lost, reconnecting", {
+        error,
+        baseUrl,
+      });
+    }
     reconnect();
   };
 
