@@ -1,0 +1,90 @@
+{
+  "id": "trigger-e2e-options",
+  "name": "Pocketbase Trigger Options E2E",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "collection": "e2e_posts",
+        "events": [
+          "create"
+        ],
+        "options": {
+          "filter": "title = \"match\"",
+          "fields": "id,title,expand",
+          "expand": "author"
+        }
+      },
+      "id": "t1",
+      "name": "Pocketbase Trigger",
+      "type": "n8n-nodes-pocketbase.pocketbaseTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        100
+      ],
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id",
+          "name": "Pocketbase Integration Test Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "mode": "each",
+        "options": {}
+      },
+      "id": "t2",
+      "name": "Convert to File",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        320,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/home/node/.n8n-files/options-e2e-{{ $now.toMillis() }}-{{ Math.floor(Math.random() * 100000) }}.json",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "id": "t3",
+      "name": "Write Event",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        540,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Pocketbase Trigger": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Write Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

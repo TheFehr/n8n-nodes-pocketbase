@@ -20,6 +20,7 @@ interface MockTriggerFunctions {
   emitError: ReturnType<typeof vi.fn>;
   logger: {
     error: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -54,6 +55,7 @@ describe("PocketbaseTrigger", () => {
       emitError: vi.fn(),
       logger: {
         error: vi.fn(),
+        warn: vi.fn(),
       },
     };
     esInstance = {
@@ -164,7 +166,7 @@ describe("PocketbaseTrigger", () => {
     ]);
   });
 
-  it("should emit sample data on manualTriggerFunction", async () => {
+  it("should leave a test run waiting for a real event instead of emitting sample data", async () => {
     triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
       if (name === "collection") return "posts";
       if (name === "events") return ["create", "update", "delete"];
@@ -173,21 +175,62 @@ describe("PocketbaseTrigger", () => {
 
     const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
-    if (response.manualTriggerFunction) {
-      await response.manualTriggerFunction();
-      expect(triggerFunctions.emit).toHaveBeenCalledWith([
-        [
-          {
-            json: expect.objectContaining({
-              __action: "create",
-              collectionName: "posts",
-            }),
-          },
-        ],
-      ]);
-    } else {
-      throw new Error("manualTriggerFunction should be defined");
-    }
+    // n8n runs manualTriggerFunction as soon as a test run starts and never waits for the real
+    // subscription; without one it waits for the first emit() of the live stream.
+    expect(response.manualTriggerFunction).toBeUndefined();
+    expect(triggerFunctions.emit).not.toHaveBeenCalled();
+  });
+
+  it("should subscribe to a topic carrying the filter, fields and expand options", async () => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      if (name === "options") {
+        return { filter: "status = 'paid'", fields: "id,status", expand: "customer" };
+      }
+      return undefined;
+    });
+
+    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+
+    const topic = `posts?options=${encodeURIComponent(
+      JSON.stringify({
+        query: { filter: "status = 'paid'", fields: "id,status", expand: "customer" },
+      }),
+    )}`;
+    // The event is named after the exact subscribed topic, so the listener has to use it too.
+    const topicCallback = esInstance.addEventListener.mock.calls.find(
+      (call: unknown[]) => call[0] === topic,
+    )?.[1];
+    expect(topicCallback).toBeDefined();
+    expect(esInstance.addEventListener).not.toHaveBeenCalledWith("posts", expect.any(Function));
+
+    const connect = esInstance.addEventListener.mock.calls.find(
+      (call: unknown[]) => call[0] === "PB_CONNECT",
+    )![1];
+    await connect({ data: JSON.stringify({ clientId: "c1" }) });
+    expect(triggerFunctions.helpers.httpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "http://localhost:8090/api/realtime",
+        body: { clientId: "c1", subscriptions: [topic] },
+      }),
+    );
+
+    topicCallback({ data: JSON.stringify({ action: "create", record: { id: "1" } }) });
+    expect(triggerFunctions.emit).toHaveBeenCalledTimes(1);
+  });
+
+  it("should leave out empty options and subscribe to the plain collection", async () => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      if (name === "options") return { filter: "", fields: "" };
+      return undefined;
+    });
+
+    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+
+    expect(esInstance.addEventListener).toHaveBeenCalledWith("posts", expect.any(Function));
   });
 
   it("should not emit data on non-matching event", async () => {
@@ -228,7 +271,12 @@ describe("PocketbaseTrigger", () => {
     expect(esInstance.close).toHaveBeenCalled();
   });
 
-  it("should handle EventSource connection failure", async () => {
+  // PocketBase closes a realtime connection after five idle minutes. That is routine, and emitError
+  // would make n8n deactivate the workflow, so a drop must be handled by reconnecting alone.
+  it.each([
+    ["an Error", new Error("Connection failed")],
+    ["a plain event object", { message: "Conn failed", code: 500 }],
+  ])("should reconnect without emitting an error when the stream drops with %s", async (_label, dropped) => {
     vi.useFakeTimers();
     try {
       triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
@@ -238,25 +286,23 @@ describe("PocketbaseTrigger", () => {
       });
 
       const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(1);
 
       const errorCallback = esInstance.addEventListener.mock.calls.find(
         (call: unknown[]) => call[0] === "error",
       )![1];
+      errorCallback(dropped);
 
-      const mockError = new Error("Connection failed");
-      errorCallback(mockError);
-
-      expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
-        "PocketBase SSE connection failure",
-        expect.objectContaining({ error: mockError, baseUrl: "http://localhost:8090" }),
-      );
-      expect(triggerFunctions.emitError).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "Connection failed",
-          originalErrorEvent: mockError,
-        }),
+      expect(triggerFunctions.logger.warn).toHaveBeenCalledWith(
+        "PocketBase SSE connection lost, reconnecting",
+        expect.objectContaining({ error: dropped, baseUrl: "http://localhost:8090" }),
       );
       expect(esInstance.close).toHaveBeenCalled();
+      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(2);
+      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
 
       await response.closeFunction!();
     } finally {
@@ -264,7 +310,127 @@ describe("PocketbaseTrigger", () => {
     }
   });
 
-  it("should handle EventSource delivering a non-Error error event", async () => {
+  // A server that is still starting after a restart refuses or fails requests; that must not
+  // deactivate the workflow. Rejected credentials fail the same way every time and are reported.
+  it.each([
+    ["a refused connection", Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })],
+    ["a 503 from n8n's request helper", { httpCode: "503", message: "Service unavailable" }],
+    ["a 502 on the response", { response: { status: 502 }, message: "Bad gateway" }],
+    ["a 404 for a client id that is already gone", { httpCode: "404", message: "Not found" }],
+  ])("should retry quietly when connecting fails with %s", async (_label, failure) => {
+    vi.useFakeTimers();
+    try {
+      triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+        if (name === "collection") return "posts";
+        if (name === "events") return ["create"];
+        return undefined;
+      });
+      triggerFunctions.helpers.httpRequest.mockRejectedValue(failure);
+
+      const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+      const connect = esInstance.addEventListener.mock.calls.find(
+        (call: unknown[]) => call[0] === "PB_CONNECT",
+      )![1];
+      await connect({ data: JSON.stringify({ clientId: "c1" }) });
+
+      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(2);
+      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
+
+      await response.closeFunction!();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    ["httpCode", { httpCode: "400", message: "Failed to authenticate." }],
+    ["status", { status: 401, message: "Unauthorized" }],
+    ["response.status", { response: { status: 403 }, message: "Forbidden" }],
+  ])("should report rejected credentials at once (%s)", async (_label, failure) => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      return undefined;
+    });
+    triggerFunctions.helpers.httpRequest.mockRejectedValue(failure);
+
+    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+    const connect = esInstance.addEventListener.mock.calls.find(
+      (call: unknown[]) => call[0] === "PB_CONNECT",
+    )![1];
+    await connect({ data: JSON.stringify({ clientId: "c1" }) });
+
+    expect(triggerFunctions.emitError).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([400, 401, 403])("should report an SSE stream rejected with HTTP %s at once", async (code) => {
+    triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+      if (name === "collection") return "posts";
+      if (name === "events") return ["create"];
+      return undefined;
+    });
+
+    await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+    const errorCallback = esInstance.addEventListener.mock.calls.find(
+      (call: unknown[]) => call[0] === "error",
+    )![1];
+    errorCallback({ code, message: "rejected" });
+
+    expect(triggerFunctions.emitError).toHaveBeenCalledTimes(1);
+  });
+
+  it("should ignore a subscription failure from a stream that has been replaced", async () => {
+    vi.useFakeTimers();
+    try {
+      triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
+        if (name === "collection") return "posts";
+        if (name === "events") return ["create"];
+        return undefined;
+      });
+      // Each connection gets its own stream object, as the real EventSource does.
+      vi.mocked(EventSource).mockImplementation(function (this: unknown) {
+        esInstance = { addEventListener: vi.fn(), removeEventListener: vi.fn(), close: vi.fn() };
+        return esInstance;
+      } as unknown as (url: string | URL) => EventSource);
+      let rejectSubscription: (reason: unknown) => void = () => {};
+      triggerFunctions.helpers.httpRequest.mockImplementation(
+        () => new Promise((_resolve, reject) => (rejectSubscription = reject)),
+      );
+
+      const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+      const connect = esInstance.addEventListener.mock.calls.find(
+        (call: unknown[]) => call[0] === "PB_CONNECT",
+      )![1];
+      const errorCallback = esInstance.addEventListener.mock.calls.find(
+        (call: unknown[]) => call[0] === "error",
+      )![1];
+      const pending = connect({ data: JSON.stringify({ clientId: "c1" }) });
+      await vi.advanceTimersByTimeAsync(0);
+
+      errorCallback({ message: "dropped" });
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(2);
+
+      rejectSubscription({ httpCode: "404", message: "Not found" });
+      await pending;
+      await vi.advanceTimersByTimeAsync(0);
+
+      // The old request failing must not close the replacement stream or schedule another one.
+      expect(vi.mocked(EventSource)).toHaveBeenCalledTimes(2);
+      expect(triggerFunctions.logger.warn).not.toHaveBeenCalledWith(
+        "Failed to connect to PocketBase SSE, retrying",
+        expect.anything(),
+      );
+
+      await response.closeFunction!();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("should emit an error only once reconnecting is exhausted", async () => {
     vi.useFakeTimers();
     try {
       triggerFunctions.getNodeParameter.mockImplementation((name: string) => {
@@ -273,29 +439,26 @@ describe("PocketbaseTrigger", () => {
         return undefined;
       });
 
-      const response = await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
+      await node.trigger.call(triggerFunctions as unknown as ITriggerFunctions);
 
       const errorCallback = esInstance.addEventListener.mock.calls.find(
         (call: unknown[]) => call[0] === "error",
       )![1];
 
-      const mockError = { message: "Conn failed", code: 500 };
-      errorCallback(mockError);
+      // The server stays unreachable: every attempt fails before the stream is ever stable.
+      for (let attempt = 0; attempt < 50; attempt++) {
+        errorCallback({ message: "down" });
+        await vi.advanceTimersByTimeAsync(31_000);
+      }
+      expect(triggerFunctions.emitError).not.toHaveBeenCalled();
 
-      expect(triggerFunctions.logger.error).toHaveBeenCalledWith(
-        "PocketBase SSE connection failure",
-        expect.objectContaining({ error: mockError, baseUrl: "http://localhost:8090" }),
-      );
+      errorCallback({ message: "down" });
+      expect(triggerFunctions.emitError).toHaveBeenCalledTimes(1);
       expect(triggerFunctions.emitError).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: "Conn failed",
-          code: 500,
-          originalErrorEvent: mockError,
+          message: expect.stringContaining("Maximum reconnection attempts (50)"),
         }),
       );
-      expect(esInstance.close).toHaveBeenCalled();
-
-      await response.closeFunction!();
     } finally {
       vi.useRealTimers();
     }

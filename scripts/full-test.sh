@@ -292,3 +292,16 @@ else
 	echo "Tests failed."
 	exit $TEST_EXIT
 fi
+
+# The Trigger end-to-end test publishes a workflow in a real n8n and restarts PocketBase to drop the
+# realtime stream, so it runs alone, after everything that shares that PocketBase has finished.
+echo "Running the Trigger end-to-end test in n8n..."
+set +e
+RUN_N8N_E2E="true" npx vitest run tests/PocketbaseTriggerN8nE2E.spec.ts 2>&1 | tee -a test_run_output.txt
+E2E_EXIT=${PIPESTATUS[0]}
+set -e
+if [ $E2E_EXIT -ne 0 ]; then
+	echo "Trigger end-to-end test failed."
+	exit $E2E_EXIT
+fi
+echo "Trigger end-to-end test passed!"

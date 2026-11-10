@@ -41,6 +41,11 @@ Turn on **Download Files** under **Parameters** of View or List/Search to get th
 
 This node allows you to subscribe to PocketBase events (create, update, delete) in real-time via Server-Sent Events (SSE).
 
+- **Options**: **Filter**, **Fields** and **Expand Relations** are applied by PocketBase before an event is sent, so the workflow only starts for the records it needs. The filter uses the same syntax as the List operation, for example `status = 'paid'`.
+- **Testing**: a test run in the editor waits for the first real event from your collection, so create or change a record to finish it.
+- **Dropped connections**: PocketBase closes a stream after five idle minutes. The node reconnects by itself and the workflow stays active. It reports an error, and so makes n8n deactivate the workflow, when PocketBase rejects the credentials (HTTP 400, 401 or 403), or after it has failed to reconnect 50 times in a row. A server that is still starting up, or a refused connection, is simply retried. PocketBase does not replay events, so a change made while the node is reconnecting is not delivered. That gap is usually a second or two, but the retry delay grows to 30 seconds plus jitter during a longer outage.
+- **Invalid filter**: PocketBase only evaluates the filter when an event happens, so it accepts a bad one without an error. The workflow then stays active but never starts. If a filtered trigger stays silent, test the same filter in the List operation.
+
 **Note**: The trigger node is currently in Beta. We've implemented basic reconnection logic, but it may still be sensitive to network interruptions or large amounts of data. Please use with caution in production.
 
 ## Credentials
@@ -81,7 +86,7 @@ This project uses modern tooling for development:
 - `npm run lint`: Lint the project.
 - `npm run format`: Format the project.
 - `npm test`: Run tests.
-- `npm run test:pipeline`: Run a full integration test against a PocketBase instance in Docker.
+- `npm run test:pipeline`: Run a full integration test against a PocketBase instance in Docker. It also publishes a workflow with the Trigger node in a real n8n, drives PocketBase through its API (create, update, delete, a dropped stream) and checks the files that workflow writes.
 
 ## Resources
 

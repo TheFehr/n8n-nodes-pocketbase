@@ -64,6 +64,42 @@ export class PocketbaseTrigger implements INodeType {
         required: true,
         description: "The events to trigger the node",
       },
+      {
+        displayName: "Options",
+        name: "options",
+        type: "collection",
+        placeholder: "Add Option",
+        default: {},
+        description:
+          "Applied by PocketBase before an event is sent, so the workflow only starts for the records it cares about",
+        options: [
+          {
+            displayName: "Expand Relations",
+            name: "expand",
+            type: "string",
+            default: "",
+            placeholder: "customer,items.product",
+            description: "Comma-separated relations to expand in the emitted record",
+          },
+          {
+            displayName: "Fields",
+            name: "fields",
+            type: "string",
+            default: "",
+            placeholder: "status,total",
+            description: "Comma-separated fields to return. Leave empty for all fields.",
+          },
+          {
+            displayName: "Filter",
+            name: "filter",
+            type: "string",
+            default: "",
+            placeholder: "status = 'paid'",
+            description:
+              "PocketBase filter expression. Only records that match it trigger the workflow.",
+          },
+        ],
+      },
     ],
   };
 
@@ -77,29 +113,50 @@ export class PocketbaseTrigger implements INodeType {
     const collection = this.getNodeParameter("collection") as string;
     const events = this.getNodeParameter("events") as string[];
 
-    const { closeFunction } = subscribeToPocketbaseSSE.call(this, baseUrl, collection, events);
-
-    return {
-      closeFunction,
-      manualTriggerFunction: async () => {
-        const sampleData = {
-          __action: "create",
-          id: "sample-id",
-          collectionId: "sample-collection-id",
-          collectionName: collection,
-          created: new Date().toISOString(),
-          updated: new Date().toISOString(),
-        };
-        this.emit([this.helpers.returnJsonArray(sampleData)]);
-      },
+    const options = (this.getNodeParameter("options", {}) ?? {}) as {
+      filter?: string;
+      fields?: string;
+      expand?: string;
     };
+    const query: Record<string, string> = {};
+    for (const key of ["filter", "fields", "expand"] as const) {
+      if (options[key]) query[key] = options[key];
+    }
+    // PocketBase names the SSE event after the full topic, options included, so the listener must
+    // be registered for exactly the string that was subscribed.
+    const topic = Object.keys(query).length
+      ? `${collection}?options=${encodeURIComponent(JSON.stringify({ query }))}`
+      : collection;
+
+    const { closeFunction } = subscribeToPocketbaseSSE.call(this, baseUrl, topic, events);
+
+    // No manualTriggerFunction: in a test run n8n then waits for the first real event instead of
+    // emitting made-up data that downstream nodes would be built against.
+    return { closeFunction };
   }
+}
+
+// HTTP 400, 401 and 403 mean the credentials were rejected (PocketBase answers a wrong password
+// with 400), which cannot succeed on a retry. The status code lives in a different place depending
+// on which layer threw the error: n8n's request helper, or EventSource, which uses `code`.
+function isPermanentFailure(error: unknown): boolean {
+  const e = error as {
+    httpCode?: string | number;
+    statusCode?: number;
+    status?: number;
+    code?: string | number;
+    response?: { status?: number };
+  } | null;
+  const status = Number(
+    e?.httpCode ?? e?.statusCode ?? e?.status ?? e?.response?.status ?? e?.code,
+  );
+  return status === 400 || status === 401 || status === 403;
 }
 
 function subscribeToPocketbaseSSE(
   this: ITriggerFunctions,
   baseUrl: string,
-  collection: string,
+  topic: string,
   events: string[],
 ): { closeFunction: () => Promise<void> } {
   let es: EventSource | null = null;
@@ -109,9 +166,9 @@ function subscribeToPocketbaseSSE(
   let stabilityTimer: NodeJS.Timeout | null = null;
   let reconnectAttempts = 0;
   const MAX_RECONNECT_ATTEMPTS = 50;
-  let consecutiveFailures = 0;
 
   const onConnect = async (e: MessageEvent) => {
+    const connectingStream = es;
     try {
       const data = JSON.parse(e.data as string);
       const clientId = data.clientId;
@@ -133,7 +190,7 @@ function subscribeToPocketbaseSSE(
         headers: { Authorization: token },
         body: {
           clientId,
-          subscriptions: [collection],
+          subscriptions: [topic],
         },
       });
 
@@ -141,19 +198,26 @@ function subscribeToPocketbaseSSE(
       if (stabilityTimer) clearTimeout(stabilityTimer);
       stabilityTimer = setTimeout(() => {
         reconnectAttempts = 0;
-        consecutiveFailures = 0;
         stabilityTimer = null;
       }, 5000);
     } catch (error) {
-      this.logger.error("Failed to connect to PocketBase SSE", { error, collection });
+      // A failure from a stream that has since been replaced must not tear down its replacement.
+      if (isClosed || es !== connectingStream) return;
       const normalizedError =
         error instanceof Error ? error : new Error(String(error || "Unknown error during connect"));
 
-      // Only emit on the first consecutive failure to avoid flooding.
-      if (consecutiveFailures === 0) {
+      // Rejected credentials or a rejected request will fail the same way on every retry, so they are
+      // reported at once. Everything else (connection refused, a 5xx, a server that is still starting
+      // after a restart) is routine and retried; reconnect() raises an error once attempts run out.
+      if (isPermanentFailure(error)) {
+        this.logger.error("Failed to connect to PocketBase SSE", { error, collection: topic });
         this.emitError(normalizedError);
+      } else {
+        this.logger.warn("Failed to connect to PocketBase SSE, retrying", {
+          error,
+          collection: topic,
+        });
       }
-      consecutiveFailures++;
       reconnect();
     }
   };
@@ -163,28 +227,18 @@ function subscribeToPocketbaseSSE(
       clearTimeout(stabilityTimer);
       stabilityTimer = null;
     }
-    this.logger.error("PocketBase SSE connection failure", {
-      error,
-      baseUrl,
-    });
-
-    const normalizedError = new Error(error.message || "PocketBase SSE connection failure") as Error & {
-      code?: number;
-      status?: number;
-      originalErrorEvent?: EventSourceErrorEvent;
-    };
-    // `status` isn't part of eventsource's declared ErrorEvent shape, but the
-    // library has been observed attaching it on some HTTP error responses.
-    const status = (error as unknown as { status?: number }).status;
-    if (error.code) normalizedError.code = error.code;
-    if (status) normalizedError.status = status;
-    normalizedError.originalErrorEvent = error;
-
-    // Only emit error on the first failure. Subsequent reconnect attempts will not flood the error stream.
-    if (consecutiveFailures === 0) {
-      this.emitError(normalizedError);
+    // A dropped stream is routine: PocketBase closes a connection that has been idle for five minutes.
+    // emitError would make n8n deactivate the workflow, so it is reserved for failures that retrying
+    // cannot fix, such as a proxy rejecting the stream; reconnect() raises one once its attempts run out.
+    if (isPermanentFailure(error)) {
+      this.logger.error("PocketBase rejected the SSE connection", { error, baseUrl });
+      this.emitError(new Error(`PocketBase SSE: connection rejected (HTTP ${error.code})`));
+    } else {
+      this.logger.warn("PocketBase SSE connection lost, reconnecting", {
+        error,
+        baseUrl,
+      });
     }
-    consecutiveFailures++;
     reconnect();
   };
 
@@ -215,7 +269,7 @@ function subscribeToPocketbaseSSE(
       this.logger.error("Failed to parse PocketBase SSE message", {
         error,
         redactedPreview,
-        collection,
+        collection: topic,
       });
     }
   };
@@ -228,7 +282,7 @@ function subscribeToPocketbaseSSE(
 
     es.addEventListener("PB_CONNECT", onConnect);
     es.addEventListener("error", onError);
-    es.addEventListener(collection, onMessage);
+    es.addEventListener(topic, onMessage);
   };
 
   const reconnect = () => {
@@ -243,7 +297,7 @@ function subscribeToPocketbaseSSE(
     if (es) {
       es.removeEventListener("PB_CONNECT", onConnect);
       es.removeEventListener("error", onError);
-      es.removeEventListener(collection, onMessage);
+      es.removeEventListener(topic, onMessage);
       es.close();
       es = null;
     }
@@ -251,7 +305,7 @@ function subscribeToPocketbaseSSE(
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
       this.logger.error("PocketBase trigger permanently closed after max reconnection attempts", {
         baseUrl,
-        collection,
+        collection: topic,
         reconnectAttempts,
       });
       this.emitError(
@@ -285,7 +339,7 @@ function subscribeToPocketbaseSSE(
       if (es) {
         es.removeEventListener("PB_CONNECT", onConnect);
         es.removeEventListener("error", onError);
-        es.removeEventListener(collection, onMessage);
+        es.removeEventListener(topic, onMessage);
         es.close();
       }
     },
