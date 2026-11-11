@@ -153,8 +153,10 @@ describe.skipIf(!runE2E)("PocketbaseTrigger in a real n8n (e2e)", () => {
     await login().catch(() => {});
     for (const id of created) await pb(`/${id}`, "DELETE").catch(() => {});
     await superuser("/e2e_posts", "DELETE").catch(() => {});
+    // n8n shuts down gracefully with active workflows, which can take longer than the default
+    // 10 seconds a hook gets.
     compose("stop", "n8n");
-  });
+  }, 60000);
 
   it("should start the workflow for creates, updates and deletes made through the API", async () => {
     const id = await createUser("crud");
