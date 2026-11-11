@@ -133,7 +133,10 @@ describe.skipIf(!runE2E)("PocketbaseTrigger in a real n8n (e2e)", () => {
       ].join(" && "),
     );
     compose("up", "-d", "--force-recreate", "n8n");
-    await waitFor(async () => (await fetch(`${n8nUrl}/healthz`).catch(() => null))?.ok === true, "n8n to start");
+    await waitFor(
+      async () => (await fetch(`${n8nUrl}/healthz`).catch(() => null))?.ok === true,
+      "n8n to start",
+    );
     // Events from before the subscription exists are lost, so probe until the first one arrives.
     await waitFor(
       async () => {
@@ -207,7 +210,10 @@ describe.skipIf(!runE2E)("PocketbaseTrigger in a real n8n (e2e)", () => {
   it("should keep the workflow active and delivering after PocketBase drops the stream", async () => {
     // Restarting PocketBase closes every open realtime connection, like its idle timeout does.
     compose("restart", "pocketbase");
-    await waitFor(async () => (await fetch(`${pbUrl}/api/health`).catch(() => null))?.ok === true, "PocketBase to restart");
+    await waitFor(
+      async () => (await fetch(`${pbUrl}/api/health`).catch(() => null))?.ok === true,
+      "PocketBase to restart",
+    );
     await login();
 
     // The node reconnects with a backoff; keep creating records until one is delivered.

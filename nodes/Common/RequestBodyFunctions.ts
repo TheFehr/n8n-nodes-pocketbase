@@ -1,4 +1,3 @@
- 
 import FormData from "form-data";
 import {
   AssignmentCollectionValue,
@@ -25,12 +24,7 @@ export async function prepareRequestBody(
         assignments: [],
       }) as AssignmentCollectionValue;
       fields?.assignments?.forEach(({ name, value }) => {
-        if (
-          name &&
-          typeof name === "string" &&
-          name.trim() !== "" &&
-          value !== undefined
-        ) {
+        if (name && typeof name === "string" && name.trim() !== "" && value !== undefined) {
           const key = name.trim();
           body[key] = value;
         }
@@ -42,12 +36,7 @@ export async function prepareRequestBody(
       const parsedBody = parseBodyJson(bodyJson, this.getNode());
       const filteredParsedBody: IDataObject = {};
       Object.entries(parsedBody).forEach(([key, value]) => {
-        if (
-          key &&
-          typeof key === "string" &&
-          key.trim() !== "" &&
-          value !== undefined
-        ) {
+        if (key && typeof key === "string" && key.trim() !== "" && value !== undefined) {
           const trimmedKey = key.trim();
           filteredParsedBody[trimmedKey] = value;
         }
@@ -67,14 +56,14 @@ export async function prepareRequestBody(
     (
       this.getNodeParameter("fields", { assignments: [] }) as AssignmentCollectionValue
     )?.assignments?.forEach(({ name, value }) => {
-      if (
-        name &&
-        typeof name === "string" &&
-        name.trim() !== "" &&
-        value !== undefined
-      ) {
+      if (name && typeof name === "string" && name.trim() !== "" && value !== undefined) {
         const key = name.trim();
-        const stringValue = (value === null) ? "null" : (typeof value === "object" ? JSON.stringify(value) : String(value));
+        const stringValue =
+          value === null
+            ? "null"
+            : typeof value === "object"
+              ? JSON.stringify(value)
+              : String(value);
         formData.append(key, stringValue);
       }
     });
@@ -84,14 +73,14 @@ export async function prepareRequestBody(
     const bodyJson = this.getNodeParameter("bodyJson", "{}") as string | Record<string, unknown>;
     const parsedBody = parseBodyJson(bodyJson, this.getNode());
     Object.entries(parsedBody).forEach(([key, value]) => {
-      if (
-        key &&
-        typeof key === "string" &&
-        key.trim() !== "" &&
-        value !== undefined
-      ) {
+      if (key && typeof key === "string" && key.trim() !== "" && value !== undefined) {
         const trimmedKey = key.trim();
-        const val = (value === null) ? "null" : (typeof value === "object" ? JSON.stringify(value) : String(value));
+        const val =
+          value === null
+            ? "null"
+            : typeof value === "object"
+              ? JSON.stringify(value)
+              : String(value);
         formData.append(trimmedKey, val);
       }
     });

@@ -35,9 +35,7 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger Integration", () => {
     // Counts accepted realtime subscriptions, so the test waits for one instead of a fixed delay.
     let subscriptions = 0;
     const findTriggered = (wanted: string) =>
-      received.find(
-        (data) => (data[0] as { json: { email: string } }[])[0].json.email === wanted,
-      );
+      received.find((data) => (data[0] as { json: { email: string } }[])[0].json.email === wanted);
 
     interface MockHttpRequestOptions {
       url: string;

@@ -268,9 +268,7 @@ describe("GenericFunctions", () => {
         return defaultValue;
       });
 
-      mockThis.makeRoutingRequest.mockResolvedValueOnce([
-        { json: { totalPages: 1, items: [] } },
-      ]);
+      mockThis.makeRoutingRequest.mockResolvedValueOnce([{ json: { totalPages: 1, items: [] } }]);
 
       const requestOptions: DeclarativeRestApiSettings.ResultOptions = {
         options: { qs: {} },

@@ -34,7 +34,8 @@ describe("RequestBodyFunctions", () => {
         getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
         getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
           if (name === "bodyType") return ["bodyJson"];
-          if (name === "bodyJson") return '{"a": 1, "b": {"c": 2}, "": "empty", " ": "whitespace", "nullVal": null}';
+          if (name === "bodyJson")
+            return '{"a": 1, "b": {"c": 2}, "": "empty", " ": "whitespace", "nullVal": null}';
           return defaultValue;
         }),
         logger: {
@@ -232,7 +233,8 @@ describe("RequestBodyFunctions", () => {
           getNode: vi.fn(() => ({ name: "Pocketbase", type: "test.pocketbase" })),
           getNodeParameter: vi.fn().mockImplementation((name, defaultValue) => {
             if (name === "bodyType") return ["fields"];
-            if (name === "fields") return { assignments: [{ name: "  trimmedKey  ", value: "value" }] };
+            if (name === "fields")
+              return { assignments: [{ name: "  trimmedKey  ", value: "value" }] };
             return defaultValue;
           }),
           logger: {

@@ -45,11 +45,14 @@ describe.skipIf(!runIntegration)("PocketbaseTrigger reconnect (integration)", ()
     await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
     const proxyUrl = `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`;
 
-    const authRes = await fetch(`${upstream.origin}/api/collections/_superusers/auth-with-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identity: email, password }),
-    });
+    const authRes = await fetch(
+      `${upstream.origin}/api/collections/_superusers/auth-with-password`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identity: email, password }),
+      },
+    );
     if (!authRes.ok) throw new Error(`Auth failed: ${authRes.status} ${await authRes.text()}`);
     const { token } = (await authRes.json()) as { token: string };
 

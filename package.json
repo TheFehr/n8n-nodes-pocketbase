@@ -30,7 +30,8 @@
     "test:run": "vitest run",
     "test:pipeline": "bash scripts/full-test.sh",
     "release": "n8n-node release",
-    "prepublishOnly": "n8n-node prerelease"
+    "prepublishOnly": "n8n-node prerelease",
+    "lint:oxlint": "oxlint"
   },
   "devDependencies": {
     "@n8n/node-cli": "^0.56.0",
@@ -39,6 +40,7 @@
     "eventsource": "^5.0.0",
     "form-data": "^4.0.5",
     "oxfmt": "^0.77.0",
+    "oxlint": "^1.93.0",
     "release-it": "^21.0.0",
     "tsx": "^4.21.0",
     "typescript": "5.9.3",
@@ -59,8 +61,6 @@
       "dist/nodes/PocketbaseTrigger/PocketbaseTrigger.node.js"
     ]
   },
-  "pocketbaseVersion": "0.40.6",
-  "n8nWorkflowVersion": "2.46.5",
   "n8nNodeTooling": {
     "upstream": {
       "name": "PocketBase",
@@ -87,5 +87,7 @@
         "from": "n8n"
       }
     }
-  }
+  },
+  "n8nWorkflowVersion": "2.46.5",
+  "pocketbaseVersion": "0.40.6"
 }
