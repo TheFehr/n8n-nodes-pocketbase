@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   nightly:
-    uses: TheFehr/n8n-node-tooling/.github/workflows/nightly-compat.yml@649486a40d95084cbbc8b2fec98fa28b66c94ed2 # v1.1.0
+    uses: TheFehr/n8n-node-tooling/.github/workflows/nightly-compat.yml@c9563c78f8a4023216c632e5ac7c6b2e82a32dd6 # v1.2.0
     secrets:
       CLIENT_ID: ${{ secrets.CLIENT_ID }}
       APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
