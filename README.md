@@ -61,7 +61,7 @@ Alternatively, you can use your administrator account and the "\_superusers" col
 When a new n8n or PocketBase version comes out, a nightly job runs the integration tests against it and releases an update once they pass.
 
 <!-- n8n-node-tooling:compatibility -->
-Last tested with n8n 2.47.5 and PocketBase 0.40.6.
+Last tested with n8n 2.47.6 and PocketBase 0.40.6.
 <!-- /n8n-node-tooling:compatibility -->
 
 ## Versioning
