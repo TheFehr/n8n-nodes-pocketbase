@@ -34,7 +34,7 @@
     "lint:oxlint": "oxlint"
   },
   "devDependencies": {
-    "@n8n/node-cli": "^0.56.0",
+    "@n8n/node-cli": "^0.57.0",
     "@release-it/conventional-changelog": "^12.0.0",
     "esbuild": "^0.28.1",
     "eventsource": "^5.0.0",
