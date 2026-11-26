@@ -8,10 +8,7 @@
       "name": "Start",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [
-        100,
-        100
-      ]
+      "position": [100, 100]
     },
     {
       "parameters": {
@@ -25,10 +22,7 @@
       "name": "Create Base",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        300,
-        100
-      ],
+      "position": [300, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -44,18 +38,13 @@
       "name": "Check Create Base",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        500,
-        100
-      ]
+      "position": [500, 100]
     },
     {
       "parameters": {
         "resource": "admin_test",
         "operation": "create",
-        "bodyType": [
-          "fields"
-        ],
+        "bodyType": ["fields"],
         "fields": {
           "assignments": [
             {
@@ -73,10 +62,7 @@
       "name": "Create Record",
       "type": "n8n-nodes-pocketbase.pocketbaseHttp",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ],
+      "position": [700, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -95,10 +81,7 @@
       "name": "Update Rule",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        900,
-        100
-      ],
+      "position": [900, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -114,10 +97,7 @@
       "name": "Check Update Rule",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        100
-      ]
+      "position": [1100, 100]
     },
     {
       "parameters": {
@@ -129,10 +109,7 @@
       "name": "View Base",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        1300,
-        100
-      ],
+      "position": [1300, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -148,10 +125,7 @@
       "name": "Check View Base",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1500,
-        100
-      ]
+      "position": [1500, 100]
     },
     {
       "parameters": {
@@ -164,10 +138,7 @@
       "name": "Drop Field",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        1700,
-        100
-      ],
+      "position": [1700, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -183,10 +154,7 @@
       "name": "Check Drop Field",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1900,
-        100
-      ]
+      "position": [1900, 100]
     },
     {
       "parameters": {
@@ -197,10 +165,7 @@
       "name": "List After Drop",
       "type": "n8n-nodes-pocketbase.pocketbaseHttp",
       "typeVersion": 1,
-      "position": [
-        2100,
-        100
-      ],
+      "position": [2100, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -216,10 +181,7 @@
       "name": "Check List After Drop",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2300,
-        100
-      ]
+      "position": [2300, 100]
     },
     {
       "parameters": {
@@ -233,10 +195,7 @@
       "name": "Create View",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        2500,
-        100
-      ],
+      "position": [2500, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -252,10 +211,7 @@
       "name": "Check Create View",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2700,
-        100
-      ]
+      "position": [2700, 100]
     },
     {
       "parameters": {
@@ -268,10 +224,7 @@
       "name": "Create Auth",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        2900,
-        100
-      ],
+      "position": [2900, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -287,10 +240,7 @@
       "name": "Check Create Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        3100,
-        100
-      ]
+      "position": [3100, 100]
     },
     {
       "parameters": {
@@ -303,10 +253,7 @@
       "name": "Duplicate Name",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        3300,
-        100
-      ],
+      "position": [3300, 100],
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "credentials": {
@@ -323,10 +270,7 @@
       "name": "Check Duplicate Name",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        3500,
-        100
-      ]
+      "position": [3500, 100]
     },
     {
       "parameters": {
@@ -340,10 +284,7 @@
       "name": "Invalid View Query",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        3700,
-        100
-      ],
+      "position": [3700, 100],
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "credentials": {
@@ -360,10 +301,7 @@
       "name": "Check Invalid View Query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        3900,
-        100
-      ]
+      "position": [3900, 100]
     },
     {
       "parameters": {
@@ -376,10 +314,7 @@
       "name": "Invalid Definition",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        4100,
-        100
-      ],
+      "position": [4100, 100],
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "credentials": {
@@ -396,10 +331,7 @@
       "name": "Check Invalid Definition",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        4300,
-        100
-      ]
+      "position": [4300, 100]
     },
     {
       "parameters": {
@@ -411,10 +343,7 @@
       "name": "View Missing",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        4500,
-        100
-      ],
+      "position": [4500, 100],
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "credentials": {
@@ -431,10 +360,7 @@
       "name": "Check View Missing",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        4700,
-        100
-      ]
+      "position": [4700, 100]
     },
     {
       "parameters": {
@@ -446,10 +372,7 @@
       "name": "Delete Missing",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        4900,
-        100
-      ],
+      "position": [4900, 100],
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "credentials": {
@@ -466,10 +389,7 @@
       "name": "Check Delete Missing",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        5100,
-        100
-      ]
+      "position": [5100, 100]
     },
     {
       "parameters": {
@@ -481,10 +401,7 @@
       "name": "Path In Name",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        5300,
-        100
-      ],
+      "position": [5300, 100],
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "credentials": {
@@ -501,10 +418,7 @@
       "name": "Check Path In Name",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        5500,
-        100
-      ]
+      "position": [5500, 100]
     },
     {
       "parameters": {
@@ -515,10 +429,7 @@
       "name": "List After Path",
       "type": "n8n-nodes-pocketbase.pocketbaseHttp",
       "typeVersion": 1,
-      "position": [
-        5700,
-        100
-      ],
+      "position": [5700, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -534,10 +445,7 @@
       "name": "Check List After Path",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        5900,
-        100
-      ]
+      "position": [5900, 100]
     },
     {
       "parameters": {
@@ -549,10 +457,7 @@
       "name": "Truncate View",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        6100,
-        100
-      ],
+      "position": [6100, 100],
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "credentials": {
@@ -569,10 +474,7 @@
       "name": "Check Truncate View",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        6300,
-        100
-      ]
+      "position": [6300, 100]
     },
     {
       "parameters": {
@@ -584,10 +486,7 @@
       "name": "Delete Referenced",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        6500,
-        100
-      ],
+      "position": [6500, 100],
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "credentials": {
@@ -604,10 +503,7 @@
       "name": "Check Delete Referenced",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        6700,
-        100
-      ]
+      "position": [6700, 100]
     },
     {
       "parameters": {
@@ -619,10 +515,7 @@
       "name": "Delete System",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        6900,
-        100
-      ],
+      "position": [6900, 100],
       "onError": "continueRegularOutput",
       "executeOnce": true,
       "credentials": {
@@ -639,10 +532,7 @@
       "name": "Check Delete System",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        7100,
-        100
-      ]
+      "position": [7100, 100]
     },
     {
       "parameters": {
@@ -654,10 +544,7 @@
       "name": "Truncate",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        7300,
-        100
-      ],
+      "position": [7300, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -673,10 +560,7 @@
       "name": "Check Truncate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        7500,
-        100
-      ]
+      "position": [7500, 100]
     },
     {
       "parameters": {
@@ -690,10 +574,7 @@
       "name": "Count After Truncate",
       "type": "n8n-nodes-pocketbase.pocketbaseHttp",
       "typeVersion": 1,
-      "position": [
-        7700,
-        100
-      ],
+      "position": [7700, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -710,10 +591,7 @@
       "name": "Check Count After Truncate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        7900,
-        100
-      ]
+      "position": [7900, 100]
     },
     {
       "parameters": {
@@ -730,10 +608,7 @@
       "name": "List All",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        8100,
-        100
-      ],
+      "position": [8100, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -749,10 +624,7 @@
       "name": "Check List All",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        8300,
-        100
-      ]
+      "position": [8300, 100]
     },
     {
       "parameters": {
@@ -769,10 +641,7 @@
       "name": "List Page",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        8500,
-        100
-      ],
+      "position": [8500, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -788,10 +657,7 @@
       "name": "Check List Page",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        8700,
-        100
-      ]
+      "position": [8700, 100]
     },
     {
       "parameters": {
@@ -803,10 +669,7 @@
       "name": "Delete View",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        8900,
-        100
-      ],
+      "position": [8900, 100],
       "executeOnce": true,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -822,10 +685,7 @@
       "name": "Two Names",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        9100,
-        100
-      ]
+      "position": [9100, 100]
     },
     {
       "parameters": {
@@ -837,10 +697,7 @@
       "name": "Delete Each",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        9300,
-        100
-      ],
+      "position": [9300, 100],
       "executeOnce": false,
       "credentials": {
         "pocketbaseHttpApi": {
@@ -856,10 +713,7 @@
       "name": "Check Delete Each",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        9500,
-        100
-      ]
+      "position": [9500, 100]
     },
     {
       "parameters": {
@@ -873,10 +727,7 @@
       "name": "List Rest",
       "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
       "typeVersion": 1,
-      "position": [
-        9700,
-        100
-      ],
+      "position": [9700, 100],
       "alwaysOutputData": true,
       "executeOnce": true,
       "credentials": {
@@ -893,10 +744,7 @@
       "name": "Check List Rest",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        9900,
-        100
-      ]
+      "position": [9900, 100]
     }
   ],
   "connections": {
