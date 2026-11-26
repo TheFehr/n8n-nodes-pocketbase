@@ -1,0 +1,1291 @@
+{
+  "id": "6",
+  "name": "Pocketbase Admin Collection Test Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "0",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "create",
+        "name": "admin_test",
+        "collectionType": "base",
+        "definition": "{\"fields\": [{\"name\": \"title\", \"type\": \"text\"}, {\"name\": \"note\", \"type\": \"text\"}]}"
+      },
+      "id": "1",
+      "name": "Create Base",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [300, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Create Base: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.name === 'admin_test' && json.type === 'base' && json.id, 'wrong collection');\ncheck(json.fields.some((f) => f.name === 'note'), 'field missing');\nreturn [{ json }];"
+      },
+      "id": "2",
+      "name": "Check Create Base",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 100]
+    },
+    {
+      "parameters": {
+        "resource": "admin_test",
+        "operation": "create",
+        "bodyType": ["fields"],
+        "fields": {
+          "assignments": [
+            {
+              "name": "title",
+              "value": "kept"
+            },
+            {
+              "name": "note",
+              "value": "dropped"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "Create Record",
+      "type": "n8n-nodes-pocketbase.pocketbaseHttp",
+      "typeVersion": 1,
+      "position": [700, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "update",
+        "collectionName": "admin_test",
+        "definition": "{\"listRule\": \"\"}"
+      },
+      "id": "4",
+      "name": "Update Rule",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [900, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Update Rule: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.listRule === '', 'rule not set');\ncheck(json.fields.some((f) => f.name === 'note'), 'unrelated fields changed');\nreturn [{ json }];"
+      },
+      "id": "5",
+      "name": "Check Update Rule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "view",
+        "collectionName": "admin_test"
+      },
+      "id": "6",
+      "name": "View Base",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [1300, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check View Base: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.name === 'admin_test' && json.listRule === '', 'wrong collection');\nreturn [{ json }];"
+      },
+      "id": "7",
+      "name": "Check View Base",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "update",
+        "collectionName": "={{ $json.id }}",
+        "definition": "={{ JSON.stringify({ fields: $json.fields.filter((f) => f.name !== 'note') }) }}"
+      },
+      "id": "8",
+      "name": "Drop Field",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [1700, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Drop Field: ${what}: ${JSON.stringify(items)}`); };\ncheck(!json.fields.some((f) => f.name === 'note'), 'field still there');\nreturn [{ json }];"
+      },
+      "id": "9",
+      "name": "Check Drop Field",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1900, 100]
+    },
+    {
+      "parameters": {
+        "resource": "admin_test",
+        "operation": "search"
+      },
+      "id": "10",
+      "name": "List After Drop",
+      "type": "n8n-nodes-pocketbase.pocketbaseHttp",
+      "typeVersion": 1,
+      "position": [2100, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check List After Drop: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.title === 'kept' && !('note' in json), 'record not as expected');\nreturn [{ json }];"
+      },
+      "id": "11",
+      "name": "Check List After Drop",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2300, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "create",
+        "name": "admin_test_view",
+        "collectionType": "view",
+        "viewQuery": "SELECT id, title FROM admin_test"
+      },
+      "id": "12",
+      "name": "Create View",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [2500, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Create View: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.type === 'view' && json.viewQuery.includes('SELECT'), 'wrong view');\nreturn [{ json }];"
+      },
+      "id": "13",
+      "name": "Check Create View",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2700, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "create",
+        "name": "admin_test_auth",
+        "collectionType": "auth"
+      },
+      "id": "14",
+      "name": "Create Auth",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [2900, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Create Auth: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.type === 'auth' && json.fields.some((f) => f.name === 'email'), 'wrong auth collection');\nreturn [{ json }];"
+      },
+      "id": "15",
+      "name": "Check Create Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3100, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "create",
+        "name": "admin_test",
+        "collectionType": "base"
+      },
+      "id": "16",
+      "name": "Duplicate Name",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [3300, 100],
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Duplicate Name: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.error !== undefined && /Bad request/i.test(JSON.stringify(json)), 'expected an error');\nreturn [{ json }];"
+      },
+      "id": "17",
+      "name": "Check Duplicate Name",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3500, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "create",
+        "name": "admin_test_broken",
+        "collectionType": "view",
+        "viewQuery": "SELECT id FROM missing_table"
+      },
+      "id": "18",
+      "name": "Invalid View Query",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [3700, 100],
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Invalid View Query: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.error !== undefined && /Bad request/i.test(JSON.stringify(json)), 'expected an error');\nreturn [{ json }];"
+      },
+      "id": "19",
+      "name": "Check Invalid View Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3900, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "update",
+        "collectionName": "admin_test",
+        "definition": "={{ '{oops' }}"
+      },
+      "id": "20",
+      "name": "Invalid Definition",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [4100, 100],
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Invalid Definition: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.error !== undefined && /Invalid JSON/i.test(JSON.stringify(json)), 'expected an error');\nreturn [{ json }];"
+      },
+      "id": "21",
+      "name": "Check Invalid Definition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4300, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "view",
+        "collectionName": "admin_test_missing"
+      },
+      "id": "22",
+      "name": "View Missing",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [4500, 100],
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check View Missing: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.error !== undefined && /could not be found/i.test(JSON.stringify(json)), 'expected an error');\nreturn [{ json }];"
+      },
+      "id": "23",
+      "name": "Check View Missing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4700, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "delete",
+        "collectionName": "admin_test_missing"
+      },
+      "id": "24",
+      "name": "Delete Missing",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [4900, 100],
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Delete Missing: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.error !== undefined && /could not be found/i.test(JSON.stringify(json)), 'expected an error');\nreturn [{ json }];"
+      },
+      "id": "25",
+      "name": "Check Delete Missing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5100, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "delete",
+        "collectionName": "admin_test/truncate"
+      },
+      "id": "26",
+      "name": "Path In Name",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [5300, 100],
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Path In Name: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.error !== undefined && /could not be found/i.test(JSON.stringify(json)), 'expected an error');\nreturn [{ json }];"
+      },
+      "id": "27",
+      "name": "Check Path In Name",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5500, 100]
+    },
+    {
+      "parameters": {
+        "resource": "admin_test",
+        "operation": "search"
+      },
+      "id": "28",
+      "name": "List After Path",
+      "type": "n8n-nodes-pocketbase.pocketbaseHttp",
+      "typeVersion": 1,
+      "position": [5700, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check List After Path: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.title === 'kept', 'a path in the name reached another endpoint');\nreturn [{ json }];"
+      },
+      "id": "29",
+      "name": "Check List After Path",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5900, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "truncate",
+        "collectionName": "admin_test_view"
+      },
+      "id": "30",
+      "name": "Truncate View",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [6100, 100],
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Truncate View: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.error !== undefined && /Bad request/i.test(JSON.stringify(json)), 'expected an error');\nreturn [{ json }];"
+      },
+      "id": "31",
+      "name": "Check Truncate View",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6300, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "delete",
+        "collectionName": "admin_test"
+      },
+      "id": "32",
+      "name": "Delete Referenced",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [6500, 100],
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Delete Referenced: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.error !== undefined && /Bad request/i.test(JSON.stringify(json)), 'expected an error');\nreturn [{ json }];"
+      },
+      "id": "33",
+      "name": "Check Delete Referenced",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6700, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "delete",
+        "collectionName": "_superusers"
+      },
+      "id": "34",
+      "name": "Delete System",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [6900, 100],
+      "onError": "continueRegularOutput",
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Delete System: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.error !== undefined && /Bad request/i.test(JSON.stringify(json)), 'expected an error');\nreturn [{ json }];"
+      },
+      "id": "35",
+      "name": "Check Delete System",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [7100, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "truncate",
+        "collectionName": "admin_test"
+      },
+      "id": "36",
+      "name": "Truncate",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [7300, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Truncate: ${what}: ${JSON.stringify(items)}`); };\ncheck(json.success === true, 'no success');\nreturn [{ json }];"
+      },
+      "id": "37",
+      "name": "Check Truncate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [7500, 100]
+    },
+    {
+      "parameters": {
+        "resource": "admin_test",
+        "operation": "search",
+        "parameters": {
+          "filter": "id != ''"
+        }
+      },
+      "id": "38",
+      "name": "Count After Truncate",
+      "type": "n8n-nodes-pocketbase.pocketbaseHttp",
+      "typeVersion": 1,
+      "position": [7700, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Count After Truncate: ${what}: ${JSON.stringify(items)}`); };\ncheck(items.length === 1 && !json.id, 'records left');\nreturn [{ json }];"
+      },
+      "id": "39",
+      "name": "Check Count After Truncate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [7900, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "search",
+        "parameters": {
+          "allElements": true,
+          "elementsPerPage": 1,
+          "filter": "name ~ 'admin_test'",
+          "sort": "name"
+        }
+      },
+      "id": "40",
+      "name": "List All",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [8100, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check List All: ${what}: ${JSON.stringify(items)}`); };\ncheck(items.map((c) => c.name).join() === 'admin_test,admin_test_auth,admin_test_view', 'wrong collections');\nreturn [{ json }];"
+      },
+      "id": "41",
+      "name": "Check List All",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [8300, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "search",
+        "parameters": {
+          "page": 2,
+          "elementsPerPage": 1,
+          "filter": "name ~ 'admin_test'",
+          "sort": "-name"
+        }
+      },
+      "id": "42",
+      "name": "List Page",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [8500, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check List Page: ${what}: ${JSON.stringify(items)}`); };\ncheck(items.length === 1 && json.name === 'admin_test_auth', 'wrong page');\nreturn [{ json }];"
+      },
+      "id": "43",
+      "name": "Check List Page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [8700, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "delete",
+        "collectionName": "admin_test_view"
+      },
+      "id": "44",
+      "name": "Delete View",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [8900, 100],
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return ['admin_test', 'admin_test_auth'].map((name) => ({ json: { name } }));"
+      },
+      "id": "45",
+      "name": "Two Names",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [9100, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "delete",
+        "collectionName": "={{ $json.name }}"
+      },
+      "id": "46",
+      "name": "Delete Each",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [9300, 100],
+      "executeOnce": false,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check Delete Each: ${what}: ${JSON.stringify(items)}`); };\ncheck(items.length === 2 && items.every((i) => i.success === true), 'not both deleted');\nreturn [{ json }];"
+      },
+      "id": "47",
+      "name": "Check Delete Each",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [9500, 100]
+    },
+    {
+      "parameters": {
+        "resource": "collection",
+        "operation": "search",
+        "parameters": {
+          "filter": "name ~ 'admin_test'"
+        }
+      },
+      "id": "48",
+      "name": "List Rest",
+      "type": "n8n-nodes-pocketbase.pocketbaseAdmin",
+      "typeVersion": 1,
+      "position": [9700, 100],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "pocketbaseHttpApi": {
+          "id": "pocketbase-cred-id"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst json = items[0];\nconst check = (ok, what) => { if (!ok) throw new Error(`Check List Rest: ${what}: ${JSON.stringify(items)}`); };\ncheck(items.length === 1 && !json.name, 'collections left');\nreturn [{ json }];"
+      },
+      "id": "49",
+      "name": "Check List Rest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [9900, 100]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Create Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Base": {
+      "main": [
+        [
+          {
+            "node": "Check Create Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Create Base": {
+      "main": [
+        [
+          {
+            "node": "Create Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Record": {
+      "main": [
+        [
+          {
+            "node": "Update Rule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Rule": {
+      "main": [
+        [
+          {
+            "node": "Check Update Rule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Update Rule": {
+      "main": [
+        [
+          {
+            "node": "View Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "View Base": {
+      "main": [
+        [
+          {
+            "node": "Check View Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check View Base": {
+      "main": [
+        [
+          {
+            "node": "Drop Field",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drop Field": {
+      "main": [
+        [
+          {
+            "node": "Check Drop Field",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Drop Field": {
+      "main": [
+        [
+          {
+            "node": "List After Drop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List After Drop": {
+      "main": [
+        [
+          {
+            "node": "Check List After Drop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check List After Drop": {
+      "main": [
+        [
+          {
+            "node": "Create View",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create View": {
+      "main": [
+        [
+          {
+            "node": "Check Create View",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Create View": {
+      "main": [
+        [
+          {
+            "node": "Create Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Auth": {
+      "main": [
+        [
+          {
+            "node": "Check Create Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Create Auth": {
+      "main": [
+        [
+          {
+            "node": "Duplicate Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate Name": {
+      "main": [
+        [
+          {
+            "node": "Check Duplicate Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicate Name": {
+      "main": [
+        [
+          {
+            "node": "Invalid View Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invalid View Query": {
+      "main": [
+        [
+          {
+            "node": "Check Invalid View Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Invalid View Query": {
+      "main": [
+        [
+          {
+            "node": "Invalid Definition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invalid Definition": {
+      "main": [
+        [
+          {
+            "node": "Check Invalid Definition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Invalid Definition": {
+      "main": [
+        [
+          {
+            "node": "View Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "View Missing": {
+      "main": [
+        [
+          {
+            "node": "Check View Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check View Missing": {
+      "main": [
+        [
+          {
+            "node": "Delete Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Missing": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Missing": {
+      "main": [
+        [
+          {
+            "node": "Path In Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Path In Name": {
+      "main": [
+        [
+          {
+            "node": "Check Path In Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Path In Name": {
+      "main": [
+        [
+          {
+            "node": "List After Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List After Path": {
+      "main": [
+        [
+          {
+            "node": "Check List After Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check List After Path": {
+      "main": [
+        [
+          {
+            "node": "Truncate View",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Truncate View": {
+      "main": [
+        [
+          {
+            "node": "Check Truncate View",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Truncate View": {
+      "main": [
+        [
+          {
+            "node": "Delete Referenced",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Referenced": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Referenced",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Referenced": {
+      "main": [
+        [
+          {
+            "node": "Delete System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete System": {
+      "main": [
+        [
+          {
+            "node": "Check Delete System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete System": {
+      "main": [
+        [
+          {
+            "node": "Truncate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Truncate": {
+      "main": [
+        [
+          {
+            "node": "Check Truncate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Truncate": {
+      "main": [
+        [
+          {
+            "node": "Count After Truncate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count After Truncate": {
+      "main": [
+        [
+          {
+            "node": "Check Count After Truncate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Count After Truncate": {
+      "main": [
+        [
+          {
+            "node": "List All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List All": {
+      "main": [
+        [
+          {
+            "node": "Check List All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check List All": {
+      "main": [
+        [
+          {
+            "node": "List Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Page": {
+      "main": [
+        [
+          {
+            "node": "Check List Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check List Page": {
+      "main": [
+        [
+          {
+            "node": "Delete View",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete View": {
+      "main": [
+        [
+          {
+            "node": "Two Names",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Two Names": {
+      "main": [
+        [
+          {
+            "node": "Delete Each",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Each": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Each",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Each": {
+      "main": [
+        [
+          {
+            "node": "List Rest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Rest": {
+      "main": [
+        [
+          {
+            "node": "Check List Rest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

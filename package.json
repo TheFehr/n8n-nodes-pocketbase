@@ -58,6 +58,7 @@
     ],
     "nodes": [
       "dist/nodes/PocketbaseHttp/PocketbaseHttp.node.js",
+      "dist/nodes/PocketbaseAdmin/PocketbaseAdmin.node.js",
       "dist/nodes/PocketbaseTrigger/PocketbaseTrigger.node.js"
     ]
   },

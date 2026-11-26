@@ -7,7 +7,7 @@ if command -v fnm &>/dev/null; then
 fi
 
 # EXIT trap for teardown
-ISOLATED_OUTPUT_FILES="expired_token_output.txt notfound_error_output.txt validation_error_output.txt duplicate_error_output.txt"
+ISOLATED_OUTPUT_FILES="expired_token_output.txt notfound_error_output.txt validation_error_output.txt duplicate_error_output.txt admin_output.txt"
 ALL_OUTPUT_FILES="workflow_output.txt $ISOLATED_OUTPUT_FILES test_run_output.txt"
 
 # Heuristic verdict on whether a failure is inside this node's own
@@ -165,6 +165,7 @@ docker compose -f docker-compose.test.yml run --rm \
     n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_error_notfound_test.json && \
     n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_error_validation_test.json && \
     n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_error_duplicate_test.json && \
+    n8n import:workflow --input=/home/node/custom-nodes/tests/workflows/integration_admin_test.json && \
     n8n execute --id=1
 " > workflow_output.txt 2>&1
 
@@ -272,6 +273,7 @@ expect_isolated_success 2 "Expired Token Refresh Test" expired_token_output.txt
 expect_isolated_failure 3 "Not Found Error Test" notfound_error_output.txt "wasn't found"
 expect_isolated_failure 4 "Validation Error Test" validation_error_output.txt "Values don't match"
 expect_isolated_failure 5 "Duplicate Field Error Test" duplicate_error_output.txt "Value must be unique"
+expect_isolated_success 6 "Admin Collection CRUD Test" admin_output.txt
 
 # Run unit and integration tests
 export RUN_POCKETBASE_INTEGRATION="true"

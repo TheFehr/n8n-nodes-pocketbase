@@ -37,6 +37,13 @@ Nearly all PocketBase operations for Base collections should be implemented.
 
 Turn on **Download Files** under **Parameters** of View or List/Search to get the files of each element as binary data on its item. A single-file field becomes a binary field of the same name, a multi-file field becomes `<field>_0`, `<field>_1` and so on. Protected files are supported. To download only some files, pick the fields with **Field Names** (include `id`).
 
+### Admin Node
+
+**Pocketbase Admin** manages collections, including their tables and views: List/Search, View, Create, Update, Delete and Truncate (delete every record, keep the collection). It uses the same credentials as the other nodes. It is a separate node, so an AI agent can be given record access without being able to change the schema.
+
+- **Create**: set **Name** and **Type** (Base, Auth or View; a view also needs a **View Query**). Everything else goes into **Definition**, for example `{"fields": [{"name": "title", "type": "text"}], "listRule": null}`.
+- **Update**: only the properties in **Definition** change. `fields` is the exception: it replaces the whole list, and PocketBase drops every field you leave out, **along with its data**. View the collection first, then send back all fields with your change.
+
 ### Trigger Node (Beta)
 
 This node allows you to subscribe to PocketBase events (create, update, delete) in real-time via Server-Sent Events (SSE).
