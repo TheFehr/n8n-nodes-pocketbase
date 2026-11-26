@@ -10,7 +10,7 @@ import {
   NodeOperationError,
 } from "n8n-workflow";
 import type { Readable } from "node:stream";
-import { prepareRequestBody } from "./RequestBodyFunctions";
+import { parseBodyJson, prepareRequestBody } from "./RequestBodyFunctions";
 
 interface TokenCacheEntry {
   token: string;
@@ -121,6 +121,35 @@ export async function recordPreSendAction(
 
 export const recordUpdatePreSendAction = recordPreSendAction;
 export const recordCreatePreSendAction = recordPreSendAction;
+
+export async function collectionCreatePreSendAction(
+  this: IExecuteSingleFunctions,
+  requestOptions: IHttpRequestOptions,
+): Promise<IHttpRequestOptions> {
+  const type = this.getNodeParameter("collectionType") as string;
+  const body = parseBodyJson(
+    this.getNodeParameter("definition", "{}") as string | Record<string, unknown>,
+    this.getNode(),
+  );
+  requestOptions.body = {
+    ...body,
+    name: this.getNodeParameter("name") as string,
+    type,
+    ...(type === "view" ? { viewQuery: this.getNodeParameter("viewQuery") as string } : {}),
+  };
+  return requestOptions;
+}
+
+export async function collectionUpdatePreSendAction(
+  this: IExecuteSingleFunctions,
+  requestOptions: IHttpRequestOptions,
+): Promise<IHttpRequestOptions> {
+  requestOptions.body = parseBodyJson(
+    this.getNodeParameter("definition", "{}") as string | Record<string, unknown>,
+    this.getNode(),
+  );
+  return requestOptions;
+}
 
 const FULL_LIST_PER_PAGE = 1000;
 

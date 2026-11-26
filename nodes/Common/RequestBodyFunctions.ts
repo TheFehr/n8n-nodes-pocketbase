@@ -146,7 +146,7 @@ async function handleBinaryData(this: IExecuteSingleFunctions, formData: FormDat
   });
 }
 
-function parseBodyJson(
+export function parseBodyJson(
   bodyJson: string | Record<string, unknown>,
   node: INode,
 ): Record<string, unknown> {
